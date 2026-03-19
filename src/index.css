@@ -1,0 +1,15 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #faf8ef;
+  font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}

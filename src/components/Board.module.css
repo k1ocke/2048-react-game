@@ -1,0 +1,45 @@
+.boardWrapper {
+  position: relative;
+  background: #bbada0;
+  border-radius: 8px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 100px);
+  gap: 12px;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+}
+
+.cell {
+  width: 100px;
+  height: 100px;
+  background: rgba(238, 228, 218, 0.35);
+  border-radius: 6px;
+}
+
+.tiles {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(238, 228, 218, 0.73);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay p {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #776e65;
+}
