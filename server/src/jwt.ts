@@ -14,4 +14,4 @@ export const signToken = (
   jwt.sign(payload, secret(), { expiresIn } as jwt.SignOptions);
 
 export const verifyToken = (token: string): AuthTokenPayload =>
-  jwt.verify(token, secret()) as AuthTokenPayload;
+  jwt.verify(token, secret(), { algorithms: ['HS256'] }) as AuthTokenPayload;

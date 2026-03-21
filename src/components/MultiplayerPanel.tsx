@@ -8,9 +8,10 @@ interface MultiplayerPanelProps {
   myScore: number;
   rankings: Array<{ userId: string; username: string; score: number; rank: number }> | null;
   onLeave: () => void;
+  connected: boolean;
 }
 
-const MultiplayerPanel = ({ opponents, myScore, rankings, onLeave }: MultiplayerPanelProps) => {
+const MultiplayerPanel = ({ opponents, myScore, rankings, onLeave, connected }: MultiplayerPanelProps) => {
   const highestOpponentScore = useMemo(
     () => (opponents.length > 0 ? Math.max(...opponents.map((o) => o.score)) : -1),
     [opponents],
@@ -19,6 +20,10 @@ const MultiplayerPanel = ({ opponents, myScore, rankings, onLeave }: Multiplayer
   return (
     <div className={styles.panel}>
       <p className={styles.panelTitle}>Multiplayer</p>
+
+      {!connected && (
+        <p className={styles.reconnecting} role="status">Reconnecting…</p>
+      )}
 
       {rankings === null ? (
         <>

@@ -73,11 +73,11 @@ export const useAuth = (): UseAuthReturn => {
         const data = (await res.json()) as CurrentUser;
         setUser(data);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        // Network errors (fetch throws) — leave the token intact so the user
+        // stays logged in. Only HTTP 401s (handled above) should clear the token.
         if (!cancelled) {
-          clearToken();
-          setTokenState(null);
-          setUser(null);
+          console.error('Session restore failed (network error):', err);
         }
       })
       .finally(() => {

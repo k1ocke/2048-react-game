@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
+import { useFocusTrap } from '../utils/useFocusTrap';
 import styles from './AuthModal.module.css';
 
 interface AuthModalProps {
@@ -18,6 +19,9 @@ const AuthModal = memo(({ isOpen, onClose, onLogin, onRegister, onLoginAsGuest }
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firstInputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(dialogRef, isOpen);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -89,7 +93,7 @@ const AuthModal = memo(({ isOpen, onClose, onLogin, onRegister, onLoginAsGuest }
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className={styles.modal}>
+      <div className={styles.modal} ref={dialogRef}>
         <div className={styles.header}>
           <div className={styles.tabs} role="tablist">
             <button

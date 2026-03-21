@@ -7,6 +7,7 @@ import { requireAuth, requireGuest } from '../middleware/requireAuth';
 import { toUserProfile, toGuestProfile } from '../types';
 
 const BCRYPT_ROUNDS = 12;
+const DUMMY_HASH = bcrypt.hashSync('dummy-password-never-used', 12);
 
 const router = Router();
 
@@ -48,7 +49,7 @@ router.post('/login', async (req, res) => {
   try {
     const user = await db.findByUsername(username);
     // Run bcrypt even on not-found to prevent timing attacks
-    const hash = user?.password_hash ?? '$2a$12$invalidhashpadding000000000000000000000000000000000000';
+    const hash = user?.password_hash ?? DUMMY_HASH;
     const match = await bcrypt.compare(password, hash);
 
     if (!user || !match || user.is_guest) {

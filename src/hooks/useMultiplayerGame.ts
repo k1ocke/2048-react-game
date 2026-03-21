@@ -33,6 +33,9 @@ export interface UseMultiplayerGameReturn {
 
   // Game end
   rankings: Array<{ userId: string; username: string; score: number; rank: number }> | null;
+
+  // Incremented each time a game:start message is received
+  gameStartCount: number;
 }
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -45,6 +48,7 @@ interface MultiplayerState {
   myStatus: 'playing' | 'won' | 'lost';
   opponentsRecord: Record<string, OpponentState>;
   rankings: Array<{ userId: string; username: string; score: number; rank: number }> | null;
+  gameStartCount: number;
 }
 
 type MultiplayerAction =
@@ -68,6 +72,7 @@ const initialState: MultiplayerState = {
   myStatus: 'playing',
   opponentsRecord: {},
   rankings: null,
+  gameStartCount: 0,
 };
 
 const reducer = (state: MultiplayerState, action: MultiplayerAction): MultiplayerState => {
@@ -76,8 +81,20 @@ const reducer = (state: MultiplayerState, action: MultiplayerAction): Multiplaye
       return { ...state, connected: action.connected, error: action.error ?? state.error };
     case 'SET_ERROR':
       return { ...state, error: action.error };
-    case 'SET_ROOM':
-      return { ...state, room: action.room };
+    case 'SET_ROOM': {
+      const newRoom = action.room;
+      if (newRoom && newRoom.status === 'playing') {
+        const activePlayerIds = new Set(newRoom.players.map((p) => p.userId));
+        const pruned: Record<string, OpponentState> = {};
+        for (const [id, o] of Object.entries(state.opponentsRecord)) {
+          if (activePlayerIds.has(id)) {
+            pruned[id] = o;
+          }
+        }
+        return { ...state, room: newRoom, opponentsRecord: pruned };
+      }
+      return { ...state, room: newRoom };
+    }
     case 'UPDATE_MY_SCORE':
       return { ...state, myScore: action.score, myStatus: action.status };
     case 'UPDATE_OPPONENT': {
@@ -114,7 +131,7 @@ const reducer = (state: MultiplayerState, action: MultiplayerAction): Multiplaye
       for (const [id, o] of Object.entries(state.opponentsRecord)) {
         reset[id] = { ...o, score: 0, status: 'playing', boardSnapshot: [] };
       }
-      return { ...state, rankings: null, myScore: 0, myStatus: 'playing', opponentsRecord: reset };
+      return { ...state, rankings: null, myScore: 0, myStatus: 'playing', opponentsRecord: reset, gameStartCount: state.gameStartCount + 1 };
     }
     case 'GAME_END':
       return { ...state, rankings: action.rankings };
@@ -306,5 +323,6 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
     myStatus: state.myStatus,
     opponents: Object.values(state.opponentsRecord),
     rankings: state.rankings,
+    gameStartCount: state.gameStartCount,
   };
 };

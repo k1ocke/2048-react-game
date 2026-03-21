@@ -12,6 +12,10 @@ pool.on('connect', (client) => {
   void client.query('SET statement_timeout = 5000');
 });
 
+pool.on('error', (err) => {
+  console.error('PostgreSQL pool error:', err);
+});
+
 const USER_SELECT = `
   SELECT
     u.id, u.username, u.password_hash, u.avatar_url, u.is_guest, u.created_at,

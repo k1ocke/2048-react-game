@@ -1,14 +1,34 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, RefObject } from 'react';
 import type { Direction } from '../types/game';
 
 const MIN_SWIPE_PX = 20;
 
-/** Translates touch swipe gestures on the window into directional moves. */
-export const useTouchControls = (handleMove: (direction: Direction) => void): void => {
+/** Translates touch swipe gestures into directional moves.
+ *  When a containerRef is provided, events are bound to that element and
+ *  only recognised when the touch originates inside it.
+ *  Falls back to window when no containerRef is given. */
+export const useTouchControls = (
+  handleMove: (direction: Direction) => void,
+  containerRef?: RefObject<HTMLElement | null>,
+): void => {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
+    const target: EventTarget = containerRef?.current ?? window;
+
     const onTouchStart = (e: TouchEvent) => {
+      if (containerRef?.current) {
+        const touch = e.touches[0];
+        const rect = containerRef.current.getBoundingClientRect();
+        if (
+          touch.clientX < rect.left ||
+          touch.clientX > rect.right ||
+          touch.clientY < rect.top ||
+          touch.clientY > rect.bottom
+        ) {
+          return;
+        }
+      }
       const t = e.touches[0];
       touchStart.current = { x: t.clientX, y: t.clientY };
     };
@@ -26,11 +46,11 @@ export const useTouchControls = (handleMove: (direction: Direction) => void): vo
       }
     };
 
-    window.addEventListener('touchstart', onTouchStart);
-    window.addEventListener('touchend', onTouchEnd);
+    target.addEventListener('touchstart', onTouchStart as EventListener, { passive: false });
+    target.addEventListener('touchend', onTouchEnd as EventListener);
     return () => {
-      window.removeEventListener('touchstart', onTouchStart);
-      window.removeEventListener('touchend', onTouchEnd);
+      target.removeEventListener('touchstart', onTouchStart as EventListener);
+      target.removeEventListener('touchend', onTouchEnd as EventListener);
     };
-  }, [handleMove]);
+  }, [handleMove, containerRef]);
 };

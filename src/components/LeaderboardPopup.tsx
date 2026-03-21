@@ -2,6 +2,7 @@ import { memo, useEffect, useRef } from 'react';
 import type { LeaderboardEntry } from '../types/game';
 import type { LeaderboardRow } from '../types/multiplayer';
 import { useGlobalLeaderboard } from '../hooks/useGlobalLeaderboard';
+import { useFocusTrap } from '../utils/useFocusTrap';
 import styles from './LeaderboardPopup.module.css';
 
 interface LeaderboardPopupProps {
@@ -129,6 +130,8 @@ const LeaderboardPopup = memo(({
   currentUserId,
 }: LeaderboardPopupProps) => {
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(dialogRef, isOpen);
 
   useEffect(() => {
     if (!isOpen) return;

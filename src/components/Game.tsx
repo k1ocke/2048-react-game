@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Direction } from '../types/game';
 import { useGame } from '../hooks/useGame';
 import { useLeaderboard } from '../hooks/useLeaderboard';
@@ -30,7 +30,9 @@ const Game = () => {
   const [authOpen, setAuthOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
-  const { connected, room, sendMessage, leaveRoom, opponents, rankings, error: multiplayerError } =
+  const boardRef = useRef<HTMLDivElement>(null);
+
+  const { connected, room, sendMessage, leaveRoom, opponents, rankings, error: multiplayerError, gameStartCount } =
     useMultiplayerGame(token);
 
   // Forward moves to the server when in an active multiplayer game
@@ -46,10 +48,20 @@ const Game = () => {
   const { isNewRecord } = useGameStats(state, token, refreshUser, addEntry, addHistoryEntry);
   const { matchHistory, postGameOpen, setPostGameOpen } = useMatchHistory(rankings, room);
   useMultiplayerScoreSync(state, sendMessage, room);
-  useTouchControls(handleMove);
+  useTouchControls(handleMove, boardRef);
+
+  // U6: Call restart() when game:start arrives from server (not immediately on "Play Again")
+  const prevGameStartCount = useRef(gameStartCount);
+  useEffect(() => {
+    if (gameStartCount > 0 && gameStartCount !== prevGameStartCount.current) {
+      prevGameStartCount.current = gameStartCount;
+      restart();
+    }
+  }, [gameStartCount, restart]);
 
   const handleLogout = useCallback(() => { logout(); setProfileOpen(false); }, [logout]);
-  const handlePlayAgain = useCallback(() => { restart(); sendMessage({ type: 'room:ready' }); }, [restart, sendMessage]);
+  // U6: Remove restart() from handlePlayAgain — restart fires on game:start
+  const handlePlayAgain = useCallback(() => { sendMessage({ type: 'room:ready' }); }, [sendMessage]);
   const handlePostGameLeave = useCallback(() => { setPostGameOpen(false); leaveRoom(); }, [leaveRoom, setPostGameOpen]);
 
   return (
@@ -76,7 +88,10 @@ const Game = () => {
             New Game
           </button>
         </div>
-        <Board state={state} />
+        {/* U4: pass boardRef; U7: hide overlay during active multiplayer */}
+        <div ref={boardRef}>
+          <Board state={state} hideStatusOverlay={room?.status === 'playing'} />
+        </div>
         <div className={styles.bottomBtns}>
           <button
             className={styles.leaderboardBtn}
@@ -102,6 +117,7 @@ const Game = () => {
           myScore={state.score}
           rankings={rankings}
           onLeave={leaveRoom}
+          connected={connected}
         />
       ) : (
         <ScoreHistorySidebar history={history} />

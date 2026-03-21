@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import type { ClientMessage, GameRoom } from '../types/multiplayer';
 import { getInitials } from '../utils/formatters';
+import { useFocusTrap } from '../utils/useFocusTrap';
 import RoomCodeDisplay from './RoomCodeDisplay';
 import styles from './LobbyModal.module.css';
 
@@ -31,6 +32,8 @@ const LobbyModal = memo(({
   const [joinCode, setJoinCode] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  useFocusTrap(dialogRef, isOpen);
+
   // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -40,6 +43,13 @@ const LobbyModal = memo(({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isOpen, onClose]);
+
+  // Focus the dialog element on open
+  useEffect(() => {
+    if (isOpen) {
+      dialogRef.current?.focus();
+    }
+  }, [isOpen]);
 
   // Transition to playing state
   useEffect(() => {
@@ -82,7 +92,7 @@ const LobbyModal = memo(({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className={styles.modal} ref={dialogRef}>
+      <div className={styles.modal} ref={dialogRef} tabIndex={-1}>
         <div className={styles.header}>
           <h2 className={styles.title}>
             {room ? 'Waiting Room' : 'Multiplayer'}

@@ -2,6 +2,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import type { CurrentUser } from '../types/multiplayer';
 import { isGuest } from '../types/multiplayer';
 import { getInitials } from '../utils/formatters';
+import { useFocusTrap } from '../utils/useFocusTrap';
 import styles from './ProfilePanel.module.css';
 
 interface ProfilePanelProps {
@@ -27,6 +28,9 @@ const ProfilePanel = memo(({ user, onClose, onLogout, onUpgrade, onUpdateUsernam
 
   const panelRef = useRef<HTMLDivElement>(null);
   const usernameInputRef = useRef<HTMLInputElement>(null);
+
+  // ProfilePanel is always open when rendered (parent controls visibility via conditional render)
+  useFocusTrap(panelRef, true);
 
   useEffect(() => {
     onOpen?.();

@@ -54,7 +54,13 @@ export const useGameStats = (
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ won: status === 'won', score, moves }),
         })
-          .then(() => refreshUser())
+          .then((res) => {
+            if (!res.ok) {
+              console.error('Failed to save stats', res.status);
+              return;
+            }
+            return refreshUser();
+          })
           .catch((err: unknown) => console.error('Failed to submit stats:', err));
       }
     }

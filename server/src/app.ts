@@ -6,6 +6,7 @@ import authRouter from './routes/auth';
 import meRouter from './routes/me';
 import statsRouter from './routes/stats';
 import leaderboardRouter from './routes/leaderboard';
+import { pool } from './db';
 
 export const createApp = () => {
   const app = express();
@@ -38,7 +39,14 @@ export const createApp = () => {
 
   app.use('/api/v1/leaderboard', leaderboardLimiter, leaderboardRouter);
 
-  app.get('/health', (_req, res) => res.json({ ok: true }));
+  app.get('/health', async (_req, res) => {
+    try {
+      await pool.query('SELECT 1');
+      res.json({ ok: true, db: 'connected' });
+    } catch {
+      res.status(503).json({ ok: false, db: 'error' });
+    }
+  });
 
   return app;
 };

@@ -26,6 +26,6 @@ export const patchMeSchema = z.object({
 
 export const gameEndSchema = z.object({
   won: z.boolean(),
-  score: z.number().int().min(0),
-  moves: z.number().int().min(0),
+  score: z.number().int().min(0).max(500000),
+  moves: z.number().int().min(0).max(100000),
 });

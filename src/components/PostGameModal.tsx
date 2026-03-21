@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef } from 'react';
 import type { GameRoom } from '../types/multiplayer';
+import { useFocusTrap } from '../utils/useFocusTrap';
 import styles from './PostGameModal.module.css';
 
 type RankingEntry = { userId: string; username: string; score: number; rank: number };
@@ -26,6 +27,8 @@ const PostGameModal = memo(({
   onLeave,
 }: PostGameModalProps) => {
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(dialogRef, isOpen);
 
   useEffect(() => {
     if (!isOpen) return;

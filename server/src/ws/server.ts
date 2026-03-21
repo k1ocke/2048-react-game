@@ -1,10 +1,21 @@
 import http from 'http';
 import { WebSocket, WebSocketServer } from 'ws';
+import { z } from 'zod';
 import { verifyToken } from '../jwt';
 import { db } from '../db';
-import type { ClientMessage, ServerMessage } from '../types';
+import type { ServerMessage } from '../types';
 import { RoomManager } from './RoomManager';
 import { GameSession } from './GameSession';
+
+const clientMessageSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('room:create'), maxPlayers: z.union([z.literal(2), z.literal(3), z.literal(4)]) }),
+  z.object({ type: z.literal('room:join'), roomId: z.string().min(1).max(10) }),
+  z.object({ type: z.literal('room:leave') }),
+  z.object({ type: z.literal('room:ready') }),
+  z.object({ type: z.literal('game:move'), direction: z.enum(['up', 'down', 'left', 'right']) }),
+  z.object({ type: z.literal('game:score-update'), score: z.number().int().min(0).max(500000), status: z.enum(['playing', 'won', 'lost']), board: z.array(z.array(z.number())).optional() }),
+  z.object({ type: z.literal('game:restart') }),
+]);
 
 const AUTH_TIMEOUT_MS = 5000;
 
@@ -24,7 +35,16 @@ export const attachWebSocketServer = (
   httpServer: http.Server,
   roomManager: RoomManager,
 ): WebSocketServer => {
-  const wss = new WebSocketServer({ server: httpServer });
+  const wss = new WebSocketServer({
+    server: httpServer,
+    maxPayload: 4096,
+    verifyClient: ({ req }: { req: http.IncomingMessage }) => {
+      const origin = req.headers.origin;
+      if (!origin) return true; // same-server / non-browser client
+      const allowed = process.env.CORS_ORIGIN ?? 'http://localhost:3000';
+      return origin === allowed;
+    },
+  });
 
   // userId → socket
   const connections = new Map<string, AuthenticatedSocket>();
@@ -158,7 +178,9 @@ export const attachWebSocketServer = (
       // ── Authenticated message routing ──────────────────────────────────
       const userId = ws.userId!;
       const username = ws.username!;
-      const clientMsg = msg as ClientMessage;
+      const parsed = clientMessageSchema.safeParse(msg);
+      if (!parsed.success) return; // silently ignore invalid messages
+      const clientMsg = parsed.data;
 
       switch (clientMsg.type) {
         case 'room:create': {
@@ -172,6 +194,16 @@ export const attachWebSocketServer = (
         }
 
         case 'room:join': {
+          if (ws.roomId) {
+            const prevRoomId = ws.roomId;
+            const prev = roomManager.leaveRoom(prevRoomId, userId);
+            ws.roomId = undefined;
+            if (prev) {
+              broadcastToRoom(prev.roomId, { type: 'room:state', room: prev });
+            } else {
+              sessions.delete(prevRoomId);
+            }
+          }
           const room = roomManager.joinRoom(clientMsg.roomId, {
             userId,
             username,

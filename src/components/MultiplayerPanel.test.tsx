@@ -28,6 +28,7 @@ describe('MultiplayerPanel', () => {
     myScore: 0,
     rankings: null,
     onLeave: jest.fn(),
+    connected: true,
   };
 
   it('renders the panel title', () => {
