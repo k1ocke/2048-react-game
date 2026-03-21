@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
 import type { ClientMessage, GameRoom, ServerMessage } from '../types/multiplayer';
 import { API_BASE } from '../utils/env';
 
@@ -35,17 +35,105 @@ export interface UseMultiplayerGameReturn {
   rankings: Array<{ userId: string; username: string; score: number; rank: number }> | null;
 }
 
+// ─── Reducer ──────────────────────────────────────────────────────────────────
+
+interface MultiplayerState {
+  connected: boolean;
+  error: string | null;
+  room: GameRoom | null;
+  myScore: number;
+  myStatus: 'playing' | 'won' | 'lost';
+  opponentsRecord: Record<string, OpponentState>;
+  rankings: Array<{ userId: string; username: string; score: number; rank: number }> | null;
+}
+
+type MultiplayerAction =
+  | { type: 'SET_CONNECTED'; connected: boolean; error?: string | null }
+  | { type: 'SET_ERROR'; error: string }
+  | { type: 'SET_ROOM'; room: GameRoom | null }
+  | { type: 'UPDATE_MY_SCORE'; score: number; status: 'playing' | 'won' | 'lost' }
+  | { type: 'UPDATE_OPPONENT'; userId: string; username: string; score: number; status: 'playing' | 'won' | 'lost'; boardSnapshot: number[][] }
+  | { type: 'ENRICH_OPPONENT_USERNAME'; userId: string; username: string }
+  | { type: 'SEED_OPPONENTS'; players: Array<{ userId: string; username: string }> }
+  | { type: 'GAME_START' }
+  | { type: 'GAME_END'; rankings: Array<{ userId: string; username: string; score: number; rank: number }> }
+  | { type: 'LEAVE_ROOM' }
+  | { type: 'DISCONNECT_RESET' };
+
+const initialState: MultiplayerState = {
+  connected: false,
+  error: null,
+  room: null,
+  myScore: 0,
+  myStatus: 'playing',
+  opponentsRecord: {},
+  rankings: null,
+};
+
+const reducer = (state: MultiplayerState, action: MultiplayerAction): MultiplayerState => {
+  switch (action.type) {
+    case 'SET_CONNECTED':
+      return { ...state, connected: action.connected, error: action.error ?? state.error };
+    case 'SET_ERROR':
+      return { ...state, error: action.error };
+    case 'SET_ROOM':
+      return { ...state, room: action.room };
+    case 'UPDATE_MY_SCORE':
+      return { ...state, myScore: action.score, myStatus: action.status };
+    case 'UPDATE_OPPONENT': {
+      const existing = state.opponentsRecord[action.userId];
+      const username = existing?.username !== action.userId ? existing?.username ?? action.userId : action.userId;
+      return {
+        ...state,
+        opponentsRecord: {
+          ...state.opponentsRecord,
+          [action.userId]: { userId: action.userId, username, score: action.score, status: action.status, boardSnapshot: action.boardSnapshot },
+        },
+      };
+    }
+    case 'ENRICH_OPPONENT_USERNAME': {
+      const o = state.opponentsRecord[action.userId];
+      if (!o) return state;
+      return {
+        ...state,
+        opponentsRecord: { ...state.opponentsRecord, [action.userId]: { ...o, username: action.username } },
+      };
+    }
+    case 'SEED_OPPONENTS': {
+      const additions: Record<string, OpponentState> = {};
+      for (const p of action.players) {
+        if (!state.opponentsRecord[p.userId]) {
+          additions[p.userId] = { userId: p.userId, username: p.username, score: 0, status: 'playing', boardSnapshot: [] };
+        }
+      }
+      if (Object.keys(additions).length === 0) return state;
+      return { ...state, opponentsRecord: { ...state.opponentsRecord, ...additions } };
+    }
+    case 'GAME_START': {
+      const reset: Record<string, OpponentState> = {};
+      for (const [id, o] of Object.entries(state.opponentsRecord)) {
+        reset[id] = { ...o, score: 0, status: 'playing', boardSnapshot: [] };
+      }
+      return { ...state, rankings: null, myScore: 0, myStatus: 'playing', opponentsRecord: reset };
+    }
+    case 'GAME_END':
+      return { ...state, rankings: action.rankings };
+    case 'LEAVE_ROOM':
+      return { ...state, room: null, opponentsRecord: {}, rankings: null, myScore: 0, myStatus: 'playing' };
+    case 'DISCONNECT_RESET':
+      return { ...state, connected: false, room: state.room?.status === 'playing' ? state.room : null };
+    default:
+      return state;
+  }
+};
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
 const RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 30000;
 
 export const useMultiplayerGame = (token: string | null): UseMultiplayerGameReturn => {
-  const [connected, setConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [room, setRoom] = useState<GameRoom | null>(null);
-  const [myScore, setMyScore] = useState(0);
-  const [myStatus, setMyStatus] = useState<'playing' | 'won' | 'lost'>('playing');
-  const [opponentsRecord, setOpponentsRecord] = useState<Record<string, OpponentState>>({});
-  const [rankings, setRankings] = useState<Array<{ userId: string; username: string; score: number; rank: number }> | null>(null);
+  const [state, dispatch] = useReducer(reducer, initialState);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -53,6 +141,10 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
   const unmountedRef = useRef(false);
   // Derive own userId from the JWT token payload (base64 middle segment)
   const myUserIdRef = useRef<string | null>(null);
+  // Keep a ref to current state so WebSocket callbacks can read it without
+  // creating stale closures.
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const parseUserIdFromToken = (tok: string): string | null => {
     try {
@@ -80,8 +172,7 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
         ws.close();
         return;
       }
-      setConnected(true);
-      setError(null);
+      dispatch({ type: 'SET_CONNECTED', connected: true, error: null });
       reconnectAttemptsRef.current = 0;
       ws.send(JSON.stringify({ type: 'auth', token }));
     };
@@ -105,67 +196,42 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
             id: roomId,
             players: raw.players.map((p) => ({ ...p, isHost: p.userId === raw.hostId })),
           };
-          setRoom(normalized);
           // Seed opponents list from room players when game is active
           if (normalized.status === 'playing' && myUserIdRef.current) {
-            setOpponentsRecord((prev) => {
-              const additions: Record<string, OpponentState> = {};
-              for (const p of normalized.players) {
-                if (p.userId !== myUserIdRef.current && !prev[p.userId]) {
-                  additions[p.userId] = { userId: p.userId, username: p.username, score: 0, status: 'playing', boardSnapshot: [] };
-                }
-              }
-              return Object.keys(additions).length > 0 ? { ...prev, ...additions } : prev;
+            dispatch({
+              type: 'SEED_OPPONENTS',
+              players: normalized.players.filter((p) => p.userId !== myUserIdRef.current),
             });
           }
+          dispatch({ type: 'SET_ROOM', room: normalized });
           break;
         }
         case 'player:update': {
           const { userId, score, status, boardSnapshot } = msg;
           if (userId === myUserIdRef.current) {
-            setMyScore(score);
-            setMyStatus(status);
+            dispatch({ type: 'UPDATE_MY_SCORE', score, status });
           } else {
-            setOpponentsRecord((prev) => {
-              const existing = prev[userId];
-              const username = existing?.username ?? userId;
-              return { ...prev, [userId]: { userId, username, score, status, boardSnapshot } };
-            });
-            // Enrich username from room state when room is available
-            setRoom((prevRoom) => {
-              if (prevRoom) {
-                setOpponentsRecord((prev) => {
-                  const o = prev[userId];
-                  if (o && o.username === userId) {
-                    const player = prevRoom.players.find((p) => p.userId === userId);
-                    if (player) return { ...prev, [userId]: { ...o, username: player.username } };
-                  }
-                  return prev;
-                });
+            dispatch({ type: 'UPDATE_OPPONENT', userId, username: userId, score, status, boardSnapshot });
+            // Enrich username from current room state
+            const currentRoom = stateRef.current.room;
+            if (currentRoom) {
+              const player = currentRoom.players.find((p) => p.userId === userId);
+              if (player && stateRef.current.opponentsRecord[userId]?.username === userId) {
+                dispatch({ type: 'ENRICH_OPPONENT_USERNAME', userId, username: player.username });
               }
-              return prevRoom;
-            });
+            }
           }
           break;
         }
         case 'game:start':
           // New game starting — reset live state from the previous round
-          setRankings(null);
-          setMyScore(0);
-          setMyStatus('playing');
-          setOpponentsRecord((prev) => {
-            const reset: Record<string, OpponentState> = {};
-            for (const [id, o] of Object.entries(prev)) {
-              reset[id] = { ...o, score: 0, status: 'playing', boardSnapshot: [] };
-            }
-            return reset;
-          });
+          dispatch({ type: 'GAME_START' });
           break;
         case 'game:end':
-          setRankings(msg.rankings);
+          dispatch({ type: 'GAME_END', rankings: msg.rankings });
           break;
         case 'room:error':
-          setError(msg.message);
+          dispatch({ type: 'SET_ERROR', error: msg.message });
           break;
         default:
           break;
@@ -174,18 +240,16 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
 
     ws.onerror = () => {
       if (unmountedRef.current) return;
-      setError('WebSocket connection error');
+      dispatch({ type: 'SET_ERROR', error: 'WebSocket connection error' });
     };
 
     ws.onclose = (event) => {
       if (unmountedRef.current) return;
       // Ignore close events from stale sockets (replaced by a newer connect() call)
       if (wsRef.current !== ws) return;
-      setConnected(false);
       wsRef.current = null;
-      // Reset room state on disconnect only when not in an active game.
-      // During a game, keep the panel visible so the player isn't disoriented.
-      setRoom((prev) => (prev?.status === 'playing' ? prev : null));
+      dispatch({ type: 'DISCONNECT_RESET' });
+      dispatch({ type: 'SET_CONNECTED', connected: false });
 
       // Don't retry on auth failures — the token is bad
       if (event.code === 4001) return;
@@ -229,22 +293,18 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
   // The server may or may not send room:state back (it doesn't when the room dissolves).
   const leaveRoom = useCallback(() => {
     sendMessage({ type: 'room:leave' });
-    setRoom(null);
-    setOpponentsRecord({});
-    setRankings(null);
-    setMyScore(0);
-    setMyStatus('playing');
+    dispatch({ type: 'LEAVE_ROOM' });
   }, [sendMessage]);
 
   return {
-    connected,
-    error,
-    room,
+    connected: state.connected,
+    error: state.error,
+    room: state.room,
     sendMessage,
     leaveRoom,
-    myScore,
-    myStatus,
-    opponents: Object.values(opponentsRecord),
-    rankings,
+    myScore: state.myScore,
+    myStatus: state.myStatus,
+    opponents: Object.values(state.opponentsRecord),
+    rankings: state.rankings,
   };
 };

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { CurrentUser } from '../types/multiplayer';
 import { isGuest } from '../types/multiplayer';
 import { getInitials } from '../utils/formatters';
@@ -10,7 +11,7 @@ interface UserBadgeProps {
   onProfileClick: () => void;
 }
 
-const UserBadge = ({ user, isLoading, onSignInClick, onProfileClick }: UserBadgeProps) => {
+const UserBadge = memo(({ user, isLoading, onSignInClick, onProfileClick }: UserBadgeProps) => {
   if (isLoading) return null;
 
   if (!user || isGuest(user)) {
@@ -42,6 +43,6 @@ const UserBadge = ({ user, isLoading, onSignInClick, onProfileClick }: UserBadge
       <span className={styles.username}>{user.username}</span>
     </button>
   );
-};
+});
 
 export default UserBadge;

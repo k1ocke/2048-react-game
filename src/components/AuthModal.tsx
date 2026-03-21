@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import styles from './AuthModal.module.css';
 
 interface AuthModalProps {
@@ -11,7 +11,7 @@ interface AuthModalProps {
 
 type Tab = 'login' | 'register';
 
-const AuthModal = ({ isOpen, onClose, onLogin, onRegister, onLoginAsGuest }: AuthModalProps) => {
+const AuthModal = memo(({ isOpen, onClose, onLogin, onRegister, onLoginAsGuest }: AuthModalProps) => {
   const [activeTab, setActiveTab] = useState<Tab>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -187,6 +187,6 @@ const AuthModal = ({ isOpen, onClose, onLogin, onRegister, onLoginAsGuest }: Aut
       </div>
     </div>
   );
-};
+});
 
 export default AuthModal;

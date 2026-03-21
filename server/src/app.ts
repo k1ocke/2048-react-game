@@ -27,7 +27,16 @@ export const createApp = () => {
   app.use('/api/v1/auth', authLimiter, authRouter);
   app.use('/api/v1/me', meRouter);
   app.use('/api/v1/stats', statsRouter);
-  app.use('/api/v1/leaderboard', leaderboardRouter);
+  const leaderboardLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    skip: () => process.env.NODE_ENV === 'test',
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { code: 'RATE_LIMITED', message: 'Too many requests, please try again later' },
+  });
+
+  app.use('/api/v1/leaderboard', leaderboardLimiter, leaderboardRouter);
 
   app.get('/health', (_req, res) => res.json({ ok: true }));
 

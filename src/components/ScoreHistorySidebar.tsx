@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { ScoreHistoryEntry } from '../types/game';
 import styles from './ScoreHistorySidebar.module.css';
 
@@ -14,7 +15,7 @@ const formatDuration = (seconds: number) => {
 const formatTime = (timestamp: number) =>
   new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-const ScoreHistorySidebar = ({ history }: ScoreHistorySidebarProps) => {
+const ScoreHistorySidebar = memo(({ history }: ScoreHistorySidebarProps) => {
   const wins = history.filter((e) => e.status === 'won').length;
   const avgScore =
     history.length > 0
@@ -36,7 +37,7 @@ const ScoreHistorySidebar = ({ history }: ScoreHistorySidebarProps) => {
       ) : (
         <ol className={styles.list}>
           {history.map((entry, i) => (
-            <li key={i} className={styles.entry}>
+            <li key={`${entry.score}-${entry.date}-${i}`} className={styles.entry}>
               <span className={styles.index}>#{i + 1}</span>
               <span className={styles.score}>{entry.score.toLocaleString()}</span>
               <span
@@ -64,6 +65,6 @@ const ScoreHistorySidebar = ({ history }: ScoreHistorySidebarProps) => {
       )}
     </aside>
   );
-};
+});
 
 export default ScoreHistorySidebar;

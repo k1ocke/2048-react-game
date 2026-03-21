@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { ClientMessage, GameRoom } from '../types/multiplayer';
 import { getInitials } from '../utils/formatters';
 import RoomCodeDisplay from './RoomCodeDisplay';
@@ -16,7 +16,7 @@ interface LobbyModalProps {
   error: string | null;
 }
 
-const LobbyModal = ({
+const LobbyModal = memo(({
   isOpen,
   onClose,
   onRoomReady,
@@ -226,6 +226,6 @@ const LobbyModal = ({
       </div>
     </div>
   );
-};
+});
 
 export default LobbyModal;

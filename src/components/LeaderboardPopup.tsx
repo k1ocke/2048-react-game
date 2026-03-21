@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import type { LeaderboardEntry } from '../types/game';
 import type { LeaderboardRow } from '../types/multiplayer';
 import { useGlobalLeaderboard } from '../hooks/useGlobalLeaderboard';
@@ -121,7 +121,7 @@ const GlobalLeaderboardBody = ({
 
 // ─── Exported component ───────────────────────────────────────────────────────
 
-const LeaderboardPopup = ({
+const LeaderboardPopup = memo(({
   isOpen,
   entries,
   onClose,
@@ -173,7 +173,7 @@ const LeaderboardPopup = ({
         ) : (
           <ol className={styles.list}>
             {entries.slice(0, 10).map((entry, i) => (
-              <li key={i} className={styles.entry}>
+              <li key={`local-${entry.score}-${entry.date ?? i}`} className={styles.entry}>
                 <span className={styles.rank}>#{i + 1}</span>
                 <span className={styles.score}>{entry.score.toLocaleString()}</span>
                 <span className={styles.date}>{entry.date}</span>
@@ -184,6 +184,6 @@ const LeaderboardPopup = ({
       </div>
     </div>
   );
-};
+});
 
 export default LeaderboardPopup;

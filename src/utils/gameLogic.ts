@@ -12,6 +12,7 @@ const createTile = (row: number, col: number, value: number): Tile => ({
 });
 
 export const createInitialState = (size: number = 4): GameState => {
+  nextId = 1; // Reset tile ID counter for each new game
   const tiles: Tile[] = [];
   const positions = getRandomPositions(size, 2);
   positions.forEach(([row, col]) => {

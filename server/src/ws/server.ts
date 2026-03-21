@@ -72,8 +72,31 @@ export const attachWebSocketServer = (
     }
   };
 
+  const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+  const _idleCheckInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [roomId, session] of sessions.entries()) {
+      if (now - session.lastActivityAt > SESSION_IDLE_TIMEOUT_MS) {
+        for (const state of session.getAllStates()) {
+          const clientScore = session.getClientScore(state.userId);
+          if ((clientScore?.status ?? state.status) === 'playing') {
+            session.setClientScore(state.userId, clientScore?.score ?? state.score, 'lost');
+          }
+        }
+        handleGameEnd(roomId, session);
+      }
+    }
+  }, 60 * 1000).unref();
+
   wss.on('connection', (ws: AuthenticatedSocket) => {
     let authenticated = false;
+
+    // ── Per-connection rate limiting ───────────────────────────────────────
+    let msgCount = 0;
+    let rateLimitWindowStart = Date.now();
+    const MSG_RATE_LIMIT = 50;
+    const RATE_WINDOW_MS = 1000;
 
     // ── Step 1: authenticate within 5 seconds ─────────────────────────────
     const authTimer = setTimeout(() => {
@@ -83,6 +106,17 @@ export const attachWebSocketServer = (
     }, AUTH_TIMEOUT_MS);
 
     ws.on('message', (raw: Buffer | string) => {
+      const now = Date.now();
+      if (now - rateLimitWindowStart >= RATE_WINDOW_MS) {
+        msgCount = 0;
+        rateLimitWindowStart = now;
+      }
+      msgCount += 1;
+      if (msgCount > MSG_RATE_LIMIT) {
+        ws.close(4029, 'Rate limit exceeded');
+        return;
+      }
+
       let msg: unknown;
       try {
         msg = JSON.parse(raw.toString());
@@ -109,6 +143,10 @@ export const attachWebSocketServer = (
           ws.username = payload.username;
           authenticated = true;
           clearTimeout(authTimer);
+          const existingWs = connections.get(payload.sub);
+          if (existingWs && existingWs !== ws && existingWs.readyState === WebSocket.OPEN) {
+            existingWs.close(4000, 'Replaced by new connection');
+          }
           connections.set(payload.sub, ws);
         } catch {
           ws.close(4001, 'Invalid token');
@@ -161,8 +199,10 @@ export const attachWebSocketServer = (
           ws.roomId = undefined;
           if (updated) {
             broadcastToRoom(roomId, { type: 'room:state', room: updated });
+          } else {
+            // room dissolved — clean up any orphaned session
+            sessions.delete(roomId);
           }
-          // else: room dissolved — no broadcast needed
           break;
         }
 
@@ -223,7 +263,21 @@ export const attachWebSocketServer = (
           const session = sessions.get(roomId);
           if (!session) break;
 
-          const { score, status, board: clientBoard } = clientMsg;
+          const { score, status, board: rawClientBoard } = clientMsg;
+
+          // Validate the client-supplied board (if present)
+          const VALID_TILES = new Set([0, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]);
+          const isValidBoard = (b: unknown): b is number[][] =>
+            Array.isArray(b) &&
+            b.length === 4 &&
+            b.every(
+              (row) =>
+                Array.isArray(row) &&
+                row.length === 4 &&
+                row.every((cell) => typeof cell === 'number' && VALID_TILES.has(cell)),
+            );
+
+          const clientBoard = isValidBoard(rawClientBoard) ? rawClientBoard : undefined;
 
           // Record client-reported score (authoritative for rankings)
           session.setClientScore(userId, score, status);
@@ -284,6 +338,9 @@ export const attachWebSocketServer = (
           const updated = roomManager.leaveRoom(roomId, ws.userId);
           if (updated) {
             broadcastToRoom(roomId, { type: 'room:state', room: updated });
+          } else {
+            // room dissolved — clean up any orphaned session
+            sessions.delete(roomId);
           }
         }
       }

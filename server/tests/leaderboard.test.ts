@@ -7,6 +7,7 @@ import { createApp } from '../src/app';
 import { db, mockFullUser } from './__mocks__/db';
 import { signToken } from '../src/jwt';
 import type { LeaderboardRow } from '../src/types';
+import { meRankCache } from '../src/routes/leaderboard';
 
 const app = createApp();
 const validToken = () => signToken({ sub: mockFullUser.id, username: mockFullUser.username });
@@ -32,6 +33,7 @@ const mockEntries: LeaderboardRow[] = [
 
 beforeEach(() => {
   jest.clearAllMocks();
+  meRankCache.clear();
 });
 
 // ─── GET /leaderboard ─────────────────────────────────────────────────────────

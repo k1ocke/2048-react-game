@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { CurrentUser } from '../types/multiplayer';
 import { isGuest } from '../types/multiplayer';
 import { getInitials } from '../utils/formatters';
@@ -13,7 +13,7 @@ interface ProfilePanelProps {
   onOpen?: () => void;
 }
 
-const ProfilePanel = ({ user, onClose, onLogout, onUpgrade, onUpdateUsername, onOpen }: ProfilePanelProps) => {
+const ProfilePanel = memo(({ user, onClose, onLogout, onUpgrade, onUpdateUsername, onOpen }: ProfilePanelProps) => {
   const [editingUsername, setEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [usernameError, setUsernameError] = useState<string | null>(null);
@@ -264,6 +264,6 @@ const ProfilePanel = ({ user, onClose, onLogout, onUpgrade, onUpdateUsername, on
       </div>
     </div>
   );
-};
+});
 
 export default ProfilePanel;

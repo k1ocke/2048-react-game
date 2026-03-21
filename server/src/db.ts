@@ -102,11 +102,20 @@ export const db = {
     if (updates.length === 0) return this.findById(id);
 
     values.push(id);
-    await pool.query(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = $${i}`,
+    const { rows } = await pool.query<UserRow>(
+      `WITH updated AS (
+         UPDATE users SET ${updates.join(', ')} WHERE id = $${i}
+         RETURNING id, username, password_hash, avatar_url, is_guest, created_at
+       )
+       SELECT
+         updated.id, updated.username, updated.password_hash, updated.avatar_url,
+         updated.is_guest, updated.created_at,
+         s.total_games, s.wins, s.best_score, s.total_score, s.total_moves
+       FROM updated
+       LEFT JOIN user_stats s ON s.user_id = updated.id`,
       values,
     );
-    return this.findById(id);
+    return rows[0] ?? null;
   },
 
   async upgradeGuest(
@@ -114,11 +123,20 @@ export const db = {
     username: string,
     passwordHash: string,
   ): Promise<UserRow | null> {
-    await pool.query(
-      `UPDATE users SET username = $1, password_hash = $2, is_guest = FALSE WHERE id = $3`,
+    const { rows } = await pool.query<UserRow>(
+      `WITH updated AS (
+         UPDATE users SET username = $1, password_hash = $2, is_guest = FALSE WHERE id = $3
+         RETURNING id, username, password_hash, avatar_url, is_guest, created_at
+       )
+       SELECT
+         updated.id, updated.username, updated.password_hash, updated.avatar_url,
+         updated.is_guest, updated.created_at,
+         s.total_games, s.wins, s.best_score, s.total_score, s.total_moves
+       FROM updated
+       LEFT JOIN user_stats s ON s.user_id = updated.id`,
       [username, passwordHash, id],
     );
-    return this.findById(id);
+    return rows[0] ?? null;
   },
 
   async upsertStats(
@@ -163,10 +181,14 @@ export const db = {
       score: number;
       achieved_at: Date;
     }>(
-      `SELECT s.user_id, u.username, u.avatar_url, s.score, s.achieved_at
-       FROM scores s
-       JOIN users u ON u.id = s.user_id
-       ORDER BY s.score DESC
+      `SELECT best.user_id, u.username, u.avatar_url, best.score, best.achieved_at
+       FROM (
+         SELECT DISTINCT ON (s.user_id) s.user_id, s.score, s.achieved_at
+         FROM scores s
+         ORDER BY s.user_id, s.score DESC, s.achieved_at ASC, s.id ASC
+       ) best
+       JOIN users u ON u.id = best.user_id
+       ORDER BY best.score DESC, best.achieved_at ASC, best.user_id ASC
        LIMIT $1`,
       [limit],
     );
@@ -180,9 +202,7 @@ export const db = {
     }));
   },
 
-  async getUserRank(
-    userId: string,
-  ): Promise<{ rank: number; surrounding: LeaderboardRow[] } | null> {
+  async getUserRank(userId: string): Promise<{ rank: number; surrounding: LeaderboardRow[] } | null> {
     const { rows } = await pool.query<{
       rank: string;
       user_id: string;
@@ -191,18 +211,26 @@ export const db = {
       score: number;
       achieved_at: Date;
     }>(
-      `WITH ranked AS (
-         SELECT
-           RANK() OVER (ORDER BY s.score DESC) AS rank,
-           s.user_id, s.score, s.achieved_at, u.username, u.avatar_url
-         FROM scores s JOIN users u ON u.id = s.user_id
+      `WITH my_best AS (
+         SELECT MAX(score) AS score FROM scores WHERE user_id = $1
        ),
-       user_pos AS (
-         SELECT rank FROM ranked WHERE user_id = $1 ORDER BY rank LIMIT 1
+       my_rank_val AS (
+         SELECT COUNT(*)::int + 1 AS rank
+         FROM scores
+         WHERE score > (SELECT score FROM my_best)
        )
-       SELECT r.* FROM ranked r
-       JOIN user_pos up ON r.rank BETWEEN up.rank - 5 AND up.rank + 5
-       ORDER BY r.rank`,
+       SELECT
+         ((SELECT rank FROM my_rank_val) + ROW_NUMBER() OVER (ORDER BY s.score DESC) - 1)::int AS rank,
+         s.user_id, s.score, s.achieved_at, u.username, u.avatar_url
+       FROM (
+         SELECT s2.user_id, s2.score, s2.achieved_at
+         FROM scores s2
+         ORDER BY s2.score DESC
+         LIMIT 11
+         OFFSET GREATEST((SELECT rank FROM my_rank_val) - 6, 0)
+       ) s
+       JOIN users u ON u.id = s.user_id
+       ORDER BY s.score DESC`,
       [userId],
     );
 

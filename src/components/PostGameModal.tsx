@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import type { GameRoom } from '../types/multiplayer';
 import styles from './PostGameModal.module.css';
 
@@ -16,7 +16,7 @@ interface PostGameModalProps {
 
 const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
-const PostGameModal = ({
+const PostGameModal = memo(({
   isOpen,
   rankings,
   history,
@@ -109,7 +109,7 @@ const PostGameModal = ({
                 const matchWinner = match.rankings[0];
                 const roundNum = history.length - i;
                 return (
-                  <li key={i} className={styles.historyRow}>
+                  <li key={`round-${history.length - i}-${match.rankings[0]?.userId ?? i}`} className={styles.historyRow}>
                     <span className={styles.historyRound}>R{roundNum}</span>
                     <span className={styles.historyWinner}>
                       {MEDAL[1]} {matchWinner?.username}
@@ -153,6 +153,6 @@ const PostGameModal = ({
       </div>
     </div>
   );
-};
+});
 
 export default PostGameModal;

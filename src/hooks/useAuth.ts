@@ -89,6 +89,9 @@ export const useAuth = (): UseAuthReturn => {
     };
   }, []);
 
+  // React 19 (used here) auto-batches all state updates — including those inside async/await and
+  // setTimeout — so the multiple setTokenState/setUser calls below are already batched into a
+  // single re-render with no extra work needed (no unstable_batchedUpdates required).
   const login = useCallback(async (username: string, password: string): Promise<void> => {
     const res = await apiFetch('/api/v1/auth/login', {
       method: 'POST',

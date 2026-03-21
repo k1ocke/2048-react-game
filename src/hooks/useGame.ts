@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef } from 'react';
 import type { Direction, GameState } from '../types/game';
 import { createInitialState, move } from '../utils/gameLogic';
 import { IS_DEV } from '../utils/env';
@@ -39,6 +39,11 @@ export const useGame = (onMove?: (direction: Direction) => void) => {
     }
   }, [dispatch]);
 
+  const handleMoveRef = useRef(handleMove);
+  useLayoutEffect(() => {
+    handleMoveRef.current = handleMove;
+  });
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
@@ -56,12 +61,12 @@ export const useGame = (onMove?: (direction: Direction) => void) => {
       const direction = map[e.key];
       if (direction) {
         e.preventDefault();
-        handleMove(direction);
+        handleMoveRef.current(direction);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [handleMove]);
+  }, []); // empty deps — listener registered once, ref keeps it current
 
   return { state, handleMove, restart };
 };

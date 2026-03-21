@@ -123,6 +123,7 @@ export class GameSession {
   private players: Map<string, PlayerGameState> = new Map();
   // Client-reported scores override the server simulation for rankings
   private clientScores: Map<string, { score: number; status: 'playing' | 'won' | 'lost' }> = new Map();
+  lastActivityAt: number = Date.now();
 
   /** Replaces a player's board with the given matrix. Useful in tests for deterministic scenarios. */
   setBoard(userId: string, board: number[][]): void {
@@ -170,6 +171,7 @@ export class GameSession {
       state.status = 'lost';
     }
 
+    this.lastActivityAt = Date.now();
     return state;
   }
 
@@ -183,6 +185,7 @@ export class GameSession {
 
   setClientScore(userId: string, score: number, status: 'playing' | 'won' | 'lost'): void {
     this.clientScores.set(userId, { score, status });
+    this.lastActivityAt = Date.now();
   }
 
   getClientScore(userId: string): { score: number; status: 'playing' | 'won' | 'lost' } | undefined {
