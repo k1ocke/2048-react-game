@@ -45,47 +45,43 @@ export const useGlobalLeaderboard = (token: string | null): UseGlobalLeaderboard
           setEntries(normalised);
           setError(null);
         }
+
+        if (token) {
+          try {
+            const meRes = await fetch(`${API_BASE}/api/v1/leaderboard/me`, {
+              headers: { Authorization: `Bearer ${token}` },
+              cache: 'no-store',
+            });
+            if (meRes.ok) {
+              const meData = (await meRes.json()) as unknown;
+              if (
+                !cancelled &&
+                meData !== null &&
+                typeof meData === 'object' &&
+                'rank' in meData &&
+                'surrounding' in meData &&
+                Array.isArray((meData as { surrounding: unknown }).surrounding)
+              ) {
+                setMyRank(meData as { rank: number; surrounding: LeaderboardRow[] });
+              }
+            } else if (meRes.status === 401 && !cancelled) {
+              setError('Unauthorised. Please log in again.');
+            }
+            // non-401 errors for /me are silently ignored — global data is still shown
+          } catch {
+            // network error on /me — silently ignore, global data already set
+          }
+        } else if (!cancelled) {
+          setMyRank(null);
+        }
       } catch (err) {
         if (!cancelled) {
           setEntries([]);
           setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
         }
+      } finally {
         if (!cancelled) setIsLoading(false);
-        return;
       }
-
-      if (token) {
-        try {
-          const meRes = await fetch(`${API_BASE}/api/v1/leaderboard/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-            cache: 'no-store',
-          });
-          if (meRes.ok) {
-            const meData = (await meRes.json()) as unknown;
-            if (
-              !cancelled &&
-              meData !== null &&
-              typeof meData === 'object' &&
-              'rank' in meData &&
-              'surrounding' in meData &&
-              Array.isArray((meData as { surrounding: unknown }).surrounding)
-            ) {
-              setMyRank(meData as { rank: number; surrounding: LeaderboardRow[] });
-            }
-          } else if (meRes.status === 401) {
-            if (!cancelled) {
-              setError('Unauthorised. Please log in again.');
-            }
-          }
-          // non-401 errors for /me are silently ignored — global data is still shown
-        } catch {
-          // network error on /me — silently ignore, global data already set
-        }
-      } else {
-        if (!cancelled) setMyRank(null);
-      }
-
-      if (!cancelled) setIsLoading(false);
     };
 
     void fetchData();

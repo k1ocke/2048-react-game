@@ -1,5 +1,10 @@
 export type Direction = 'up' | 'down' | 'left' | 'right';
 
+export interface MatchHistoryEntry {
+  rankings: Array<{ userId: string; username: string; score: number; rank: number }>;
+  playedAt: Date;
+}
+
 export interface LeaderboardEntry {
   score: number;
   date: string;

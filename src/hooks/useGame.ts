@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer } from 'react';
 import type { Direction, GameState } from '../types/game';
 import { createInitialState, move } from '../utils/gameLogic';
+import { IS_DEV } from '../utils/env';
 
 type Action =
   | { type: 'MOVE'; direction: Direction }
@@ -33,7 +34,7 @@ export const useGame = (onMove?: (direction: Direction) => void) => {
   }, []);
 
   useEffect(() => {
-    if (import.meta.env.DEV) {
+    if (IS_DEV) {
       (window as unknown as Record<string, unknown>).__gameDispatch = dispatch;
     }
   }, [dispatch]);

@@ -163,4 +163,41 @@ describe('useMultiplayerGame', () => {
     unmount();
     expect(mockWS.close).toHaveBeenCalled();
   });
+
+  it('resets scores, opponents and rankings on game:start', async () => {
+    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    openWS();
+
+    // Establish some opponent state and end a game
+    receiveMessage({
+      type: 'player:update',
+      userId: 'user-456',
+      score: 500,
+      status: 'playing',
+      boardSnapshot: [],
+    });
+    receiveMessage({
+      type: 'game:end',
+      rankings: [
+        { userId: 'user-123', username: 'alice', score: 2048, rank: 1 },
+        { userId: 'user-456', username: 'bob', score: 500, rank: 2 },
+      ],
+    });
+
+    await waitFor(() => {
+      expect(result.current.rankings).not.toBeNull();
+      expect(result.current.opponents[0].score).toBe(500);
+    });
+
+    // New game starts
+    receiveMessage({ type: 'game:start', startsAt: new Date().toISOString() });
+
+    await waitFor(() => {
+      expect(result.current.rankings).toBeNull();
+      expect(result.current.myScore).toBe(0);
+      expect(result.current.myStatus).toBe('playing');
+      expect(result.current.opponents[0].score).toBe(0);
+      expect(result.current.opponents[0].status).toBe('playing');
+    });
+  });
 });

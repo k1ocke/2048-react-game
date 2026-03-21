@@ -6,6 +6,7 @@ const TOKEN_KEY = '2048-auth-token';
 
 export interface UseAuthReturn {
   user: CurrentUser | null;
+  token: string | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string) => Promise<void>;
@@ -42,6 +43,7 @@ const handleApiError = async (res: Response): Promise<never> => {
 
 export const useAuth = (): UseAuthReturn => {
   const [user, setUser] = useState<CurrentUser | null>(null);
+  const [token, setTokenState] = useState<string | null>(getToken);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // On mount, restore session from stored token
@@ -58,11 +60,13 @@ export const useAuth = (): UseAuthReturn => {
         if (cancelled) return;
         if (res.status === 401) {
           clearToken();
+          setTokenState(null);
           setUser(null);
           return;
         }
         if (!res.ok) {
           clearToken();
+          setTokenState(null);
           setUser(null);
           return;
         }
@@ -72,6 +76,7 @@ export const useAuth = (): UseAuthReturn => {
       .catch(() => {
         if (!cancelled) {
           clearToken();
+          setTokenState(null);
           setUser(null);
         }
       })
@@ -94,6 +99,7 @@ export const useAuth = (): UseAuthReturn => {
     }
     const data = (await res.json()) as { token: string; user: CurrentUser };
     setToken(data.token);
+    setTokenState(data.token);
     setUser(data.user);
   }, []);
 
@@ -107,6 +113,7 @@ export const useAuth = (): UseAuthReturn => {
     }
     const data = (await res.json()) as { token: string; user: CurrentUser };
     setToken(data.token);
+    setTokenState(data.token);
     setUser(data.user);
   }, []);
 
@@ -119,11 +126,13 @@ export const useAuth = (): UseAuthReturn => {
     }
     const data = (await res.json()) as { token: string; user: CurrentUser };
     setToken(data.token);
+    setTokenState(data.token);
     setUser(data.user);
   }, []);
 
   const logout = useCallback((): void => {
     clearToken();
+    setTokenState(null);
     setUser(null);
   }, []);
 
@@ -137,6 +146,7 @@ export const useAuth = (): UseAuthReturn => {
     }
     const data = (await res.json()) as { token: string; user: CurrentUser };
     setToken(data.token);
+    setTokenState(data.token);
     setUser(data.user);
   }, []);
 
@@ -162,5 +172,5 @@ export const useAuth = (): UseAuthReturn => {
     setUser(data);
   }, []);
 
-  return { user, isLoading, login, register, loginAsGuest, logout, upgradeGuest, updateUsername, refreshUser };
+  return { user, token, isLoading, login, register, loginAsGuest, logout, upgradeGuest, updateUsername, refreshUser };
 };

@@ -4,6 +4,7 @@ export interface LeaderboardRow {
   rank: number;
   userId: string;
   username: string;
+  avatarUrl?: string | null;
   score: number;
   date: string; // ISO 8601 or locale string
 }

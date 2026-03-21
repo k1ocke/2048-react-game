@@ -124,6 +124,14 @@ export class GameSession {
   // Client-reported scores override the server simulation for rankings
   private clientScores: Map<string, { score: number; status: 'playing' | 'won' | 'lost' }> = new Map();
 
+  /** Replaces a player's board with the given matrix. Useful in tests for deterministic scenarios. */
+  setBoard(userId: string, board: number[][]): void {
+    const state = this.players.get(userId);
+    if (state) {
+      state.board = board.map((row) => [...row]);
+    }
+  }
+
   addPlayer(userId: string): void {
     this.players.set(userId, {
       userId,

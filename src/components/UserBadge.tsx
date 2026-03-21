@@ -1,5 +1,6 @@
 import type { CurrentUser } from '../types/multiplayer';
 import { isGuest } from '../types/multiplayer';
+import { getInitials } from '../utils/formatters';
 import styles from './UserBadge.module.css';
 
 interface UserBadgeProps {
@@ -8,12 +9,6 @@ interface UserBadgeProps {
   onSignInClick: () => void;
   onProfileClick: () => void;
 }
-
-const getInitials = (username: string): string => {
-  const trimmed = username.trim();
-  if (!trimmed) return '?';
-  return trimmed.slice(0, 2).toUpperCase();
-};
 
 const UserBadge = ({ user, isLoading, onSignInClick, onProfileClick }: UserBadgeProps) => {
   if (isLoading) return null;

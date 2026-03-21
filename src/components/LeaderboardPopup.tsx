@@ -132,6 +132,7 @@ const LeaderboardPopup = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    dialogRef.current?.focus();
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -153,7 +154,7 @@ const LeaderboardPopup = ({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className={styles.popup} ref={dialogRef}>
+      <div className={styles.popup} ref={dialogRef} tabIndex={-1}>
         <div className={styles.popupHeader}>
           <h2 className={styles.popupTitle}>Leaderboard</h2>
           <button

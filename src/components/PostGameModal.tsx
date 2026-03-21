@@ -29,6 +29,7 @@ const PostGameModal = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    dialogRef.current?.focus();
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onLeave();
     };
@@ -60,7 +61,7 @@ const PostGameModal = ({
         if (e.target === e.currentTarget) onLeave();
       }}
     >
-      <div className={styles.modal} ref={dialogRef}>
+      <div className={styles.modal} ref={dialogRef} tabIndex={-1}>
         <div className={styles.header}>
           <h2 className={styles.title}>Game Over</h2>
           {winner && (

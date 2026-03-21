@@ -26,21 +26,12 @@ describe('GameSession', () => {
   });
 
   describe('applyMove — slide correctness', () => {
-    /**
-     * Helper: replace the board of an existing player with a known board
-     * so we can test specific scenarios deterministically.
-     */
-    const setBoard = (session: GameSession, userId: string, board: number[][]): void => {
-      const state = (session as unknown as { players: Map<string, unknown> })
-        .players.get(userId) as { board: number[][] };
-      state.board = board.map((row) => [...row]);
-    };
 
     it('slides tiles left: [0,0,2,2] → row starts with 4', () => {
       const session = new GameSession();
       session.addPlayer('user-1');
       // Place a board where only row 0 has tiles so the merge is predictable.
-      setBoard(session, 'user-1', [
+      session.setBoard('user-1', [
         [0, 0, 2, 2],
         [0, 0, 0, 0],
         [0, 0, 0, 0],
@@ -58,7 +49,7 @@ describe('GameSession', () => {
     it('slides tiles right: [2,2,0,0] → row ends with 4', () => {
       const session = new GameSession();
       session.addPlayer('user-1');
-      setBoard(session, 'user-1', [
+      session.setBoard('user-1', [
         [2, 2, 0, 0],
         [0, 0, 0, 0],
         [0, 0, 0, 0],
@@ -74,7 +65,7 @@ describe('GameSession', () => {
     it('no-chain-merge: [2,2,4,0] left → [4,4,0,0], score 4 not 8', () => {
       const session = new GameSession();
       session.addPlayer('user-1');
-      setBoard(session, 'user-1', [
+      session.setBoard('user-1', [
         [2, 2, 4, 0],
         [0, 0, 0, 0],
         [0, 0, 0, 0],
@@ -91,7 +82,7 @@ describe('GameSession', () => {
     it('scores correctly on merge', () => {
       const session = new GameSession();
       session.addPlayer('user-1');
-      setBoard(session, 'user-1', [
+      session.setBoard('user-1', [
         [8, 8, 0, 0],
         [4, 4, 0, 0],
         [0, 0, 0, 0],
@@ -106,7 +97,7 @@ describe('GameSession', () => {
     it('increments move counter', () => {
       const session = new GameSession();
       session.addPlayer('user-1');
-      setBoard(session, 'user-1', [
+      session.setBoard('user-1', [
         [2, 2, 0, 0],
         [0, 0, 0, 0],
         [0, 0, 0, 0],
@@ -135,10 +126,8 @@ describe('GameSession', () => {
       session.addPlayer('user-1');
       session.addPlayer('user-2');
 
-      // Force statuses via internal access
-      const players = (session as unknown as { players: Map<string, { status: string }> }).players;
-      players.get('user-1')!.status = 'won';
-      players.get('user-2')!.status = 'lost';
+      session.setClientScore('user-1', 0, 'won');
+      session.setClientScore('user-2', 0, 'lost');
 
       expect(session.isComplete()).toBe(true);
     });
@@ -148,8 +137,7 @@ describe('GameSession', () => {
       session.addPlayer('user-1');
       session.addPlayer('user-2');
 
-      const players = (session as unknown as { players: Map<string, { status: string }> }).players;
-      players.get('user-1')!.status = 'won';
+      session.setClientScore('user-1', 0, 'won');
 
       expect(session.isComplete()).toBe(false);
     });
@@ -167,14 +155,9 @@ describe('GameSession', () => {
       session.addPlayer('user-2');
       session.addPlayer('user-3');
 
-      const players = (
-        session as unknown as {
-          players: Map<string, { score: number; status: string }>;
-        }
-      ).players;
-      players.get('user-1')!.score = 100;
-      players.get('user-2')!.score = 300;
-      players.get('user-3')!.score = 200;
+      session.setClientScore('user-1', 100, 'lost');
+      session.setClientScore('user-2', 300, 'won');
+      session.setClientScore('user-3', 200, 'lost');
 
       const rankings = session.getFinalRankings();
       expect(rankings[0]).toMatchObject({ userId: 'user-2', score: 300, rank: 1 });

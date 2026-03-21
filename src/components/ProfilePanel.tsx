@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CurrentUser } from '../types/multiplayer';
 import { isGuest } from '../types/multiplayer';
+import { getInitials } from '../utils/formatters';
 import styles from './ProfilePanel.module.css';
 
 interface ProfilePanelProps {
@@ -11,12 +12,6 @@ interface ProfilePanelProps {
   onUpdateUsername: (username: string) => Promise<void>;
   onOpen?: () => void;
 }
-
-const getInitials = (username: string): string => {
-  const trimmed = username.trim();
-  if (!trimmed) return '?';
-  return trimmed.slice(0, 2).toUpperCase();
-};
 
 const ProfilePanel = ({ user, onClose, onLogout, onUpgrade, onUpdateUsername, onOpen }: ProfilePanelProps) => {
   const [editingUsername, setEditingUsername] = useState(false);

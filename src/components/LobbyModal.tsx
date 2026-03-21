@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ClientMessage, GameRoom } from '../types/multiplayer';
+import { getInitials } from '../utils/formatters';
 import RoomCodeDisplay from './RoomCodeDisplay';
 import styles from './LobbyModal.module.css';
 
@@ -70,9 +71,6 @@ const LobbyModal = ({
 
   const currentPlayer = room?.players.find((p) => p.userId === currentUserId);
   const readyCount = room?.players.filter((p) => p.isReady).length ?? 0;
-
-  const getInitials = (username: string) =>
-    username.slice(0, 2).toUpperCase();
 
   return (
     <div
