@@ -1,0 +1,71 @@
+.guestRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guestLabel {
+  color: #9d8b7a;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.signUpBtn {
+  background: linear-gradient(135deg, #f5a623, #ff6b35);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 5px 12px;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.signUpBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(245, 166, 35, 0.35);
+}
+
+.userBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 5px 10px 5px 5px;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.userBtn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(245, 166, 35, 0.3);
+  transform: translateY(-1px);
+}
+
+.avatar {
+  align-items: center;
+  background: linear-gradient(135deg, #f5a623, #ff6b35);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  font-size: 0.7rem;
+  font-weight: 700;
+  height: 28px;
+  justify-content: center;
+  letter-spacing: 0.5px;
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.username {
+  color: #f5e6d3;
+  font-size: 0.85rem;
+  font-weight: 600;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

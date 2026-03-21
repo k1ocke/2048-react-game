@@ -1,6 +1,14 @@
+export { default as AuthModal } from './AuthModal';
 export { default as Board } from './Board';
 export { default as Game } from './Game';
 export { default as LeaderboardPopup } from './LeaderboardPopup';
+export { default as LobbyModal } from './LobbyModal';
+export { default as MultiplayerPanel } from './MultiplayerPanel';
+export { default as OpponentBoard } from './OpponentBoard';
+export { default as PostGameModal } from './PostGameModal';
+export { default as ProfilePanel } from './ProfilePanel';
+export { default as RoomCodeDisplay } from './RoomCodeDisplay';
 export { default as ScoreBox } from './ScoreBox';
 export { default as ScoreHistorySidebar } from './ScoreHistorySidebar';
 export { default as Tile } from './Tile';
+export { default as UserBadge } from './UserBadge';

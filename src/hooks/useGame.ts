@@ -20,12 +20,13 @@ const reducer = (state: GameState, action: Action): GameState => {
   }
 };
 
-export const useGame = () => {
+export const useGame = (onMove?: (direction: Direction) => void) => {
   const [state, dispatch] = useReducer(reducer, undefined, () => createInitialState(4));
 
   const handleMove = useCallback((direction: Direction) => {
     dispatch({ type: 'MOVE', direction });
-  }, []);
+    onMove?.(direction);
+  }, [onMove]);
 
   const restart = useCallback(() => {
     dispatch({ type: 'RESTART' });
@@ -39,6 +40,8 @@ export const useGame = () => {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
       const map: Record<string, Direction> = {
         ArrowUp: 'up',
         ArrowDown: 'down',

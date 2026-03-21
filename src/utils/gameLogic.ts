@@ -23,6 +23,8 @@ export const createInitialState = (size: number = 4): GameState => {
     bestScore: parseInt(localStorage.getItem('2048-best') ?? '0', 10),
     status: 'playing',
     size,
+    moves: 0,
+    startTime: Date.now(),
   };
 };
 
@@ -140,6 +142,7 @@ export const move = (state: GameState, direction: Direction): GameState => {
     score: newScore,
     bestScore,
     status: hasWon ? 'won' : isLost ? 'lost' : 'playing',
+    moves: state.moves + 1,
   };
 };
 

@@ -46,10 +46,33 @@ describe('ScoreHistorySidebar', () => {
     expect(screen.getByText('#3')).toBeInTheDocument();
   });
 
-  it('displays the date for each entry', () => {
+  it('displays the date for entries without a timestamp', () => {
     render(<ScoreHistorySidebar history={mockHistory} />);
     expect(screen.getByText('1/1/2026')).toBeInTheDocument();
     expect(screen.getByText('1/2/2026')).toBeInTheDocument();
+  });
+
+  it('shows aggregate stats when history is non-empty', () => {
+    render(<ScoreHistorySidebar history={mockHistory} />);
+    expect(screen.getByText('3 games')).toBeInTheDocument();
+    expect(screen.getByText(/wins/)).toBeInTheDocument();
+  });
+
+  it('renders move count chip when moves are present', () => {
+    const historyWithStats: ScoreHistoryEntry[] = [
+      { score: 512, status: 'lost', date: '1/1/2026', moves: 42, bestTile: 256 },
+    ];
+    render(<ScoreHistorySidebar history={historyWithStats} />);
+    expect(screen.getByText('42mv')).toBeInTheDocument();
+    expect(screen.getByText('top 256')).toBeInTheDocument();
+  });
+
+  it('renders duration chip when duration is present', () => {
+    const historyWithDuration: ScoreHistoryEntry[] = [
+      { score: 200, status: 'lost', date: '1/1/2026', duration: 75 },
+    ];
+    render(<ScoreHistorySidebar history={historyWithDuration} />);
+    expect(screen.getByText('1m 15s')).toBeInTheDocument();
   });
 
   it('has accessible landmark role', () => {

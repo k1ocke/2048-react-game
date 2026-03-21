@@ -1,0 +1,123 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: #1e1510;
+  border-radius: 16px;
+  min-width: 260px;
+  max-width: 280px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.panelTitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #9d8b7a;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.opponentsList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.waiting {
+  font-size: 0.85rem;
+  color: #9d8b7a;
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* Rankings / game-over view */
+.rankingsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rankingRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #2d1f14;
+}
+
+.rankingRowOwn {
+  background: rgba(245, 166, 35, 0.12);
+  border: 1px solid rgba(245, 166, 35, 0.35);
+}
+
+.rank {
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: #9d8b7a;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.rankFirst {
+  color: #f5a623;
+}
+
+.rankingUsername {
+  flex: 1;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #f5e6d3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rankingScore {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #f5a623;
+  flex-shrink: 0;
+}
+
+.myScoreRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: #2d1f14;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.myScoreLabel {
+  color: #9d8b7a;
+  font-weight: 600;
+}
+
+.myScoreValue {
+  color: #f5a623;
+  font-weight: 700;
+}
+
+.leaveBtn {
+  margin-top: 4px;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid rgba(255, 107, 53, 0.5);
+  border-radius: 8px;
+  color: #ff6b35;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  align-self: stretch;
+}
+
+.leaveBtn:hover {
+  background: rgba(255, 107, 53, 0.1);
+  border-color: #ff6b35;
+}

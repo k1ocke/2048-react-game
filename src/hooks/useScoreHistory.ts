@@ -25,11 +25,22 @@ export const useScoreHistory = () => {
   const [history, setHistory] = useState<ScoreHistoryEntry[]>(loadHistory);
 
   const addHistoryEntry = useCallback(
-    (score: number, status: 'won' | 'lost') => {
+    (
+      score: number,
+      status: 'won' | 'lost',
+      stats?: { moves?: number; bestTile?: number; duration?: number },
+    ) => {
       if (score === 0) return;
+      const now = Date.now();
       setHistory((prev) => {
         const next = [
-          { score, status, date: new Date().toLocaleDateString() },
+          {
+            score,
+            status,
+            date: new Date(now).toLocaleDateString(),
+            timestamp: now,
+            ...stats,
+          },
           ...prev,
         ].slice(0, MAX_HISTORY);
         saveHistory(next);

@@ -6,6 +6,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
+    host: '0.0.0.0',
     allowedHosts: ['.cloudfront.net'],
+    proxy: {
+      '/api': 'http://localhost:4000',
+      '/ws': { target: 'ws://localhost:4000', ws: true },
+    },
   },
 })

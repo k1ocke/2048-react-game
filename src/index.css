@@ -4,8 +4,10 @@
 
 body {
   margin: 0;
-  background: #faf8ef;
-  font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif;
+  background: #120d08;
+  font-family: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  color: #f0ebe3;
+  min-height: 100vh;
 }
 
 #root {

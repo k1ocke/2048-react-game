@@ -1,23 +1,52 @@
 .box {
-  background: #bbada0;
-  border-radius: 6px;
-  padding: 8px 16px;
+  background: linear-gradient(135deg, #2d1f14, #1e1510);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 10px 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 80px;
+  min-width: 88px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.newRecord {
+  border-color: rgba(245, 166, 35, 0.5);
+  animation: glow 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 10px rgba(245, 166, 35, 0.2); }
+  to   { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 28px rgba(245, 166, 35, 0.55); }
 }
 
 .label {
-  color: #eee4da;
-  font-size: 0.75rem;
-  font-weight: bold;
+  color: #9d8b7a;
+  font-size: 0.68rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
 }
 
 .value {
-  color: #fff;
+  color: #f5e6d3;
   font-size: 1.5rem;
-  font-weight: bold;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #f5a623;
+  margin-top: 2px;
+  animation: popIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.6) translateY(2px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }

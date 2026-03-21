@@ -9,6 +9,10 @@ export interface ScoreHistoryEntry {
   score: number;
   status: 'won' | 'lost';
   date: string;
+  timestamp?: number;
+  moves?: number;
+  bestTile?: number;
+  duration?: number;
 }
 
 export interface Tile {
@@ -26,4 +30,6 @@ export interface GameState {
   bestScore: number;
   status: 'playing' | 'won' | 'lost';
   size: number;
+  moves: number;
+  startTime: number;
 }

@@ -1,0 +1,427 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 0.18s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal {
+  background: #1e1510;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  width: 400px;
+  max-width: 94vw;
+  padding: 28px;
+  animation: slideUp 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px) scale(0.96); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #f5a623, #ff6b35);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.closeBtn {
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  font-size: 1rem;
+  color: #9d8b7a;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f5e6d3;
+}
+
+/* ─── Connection status ───────────────────────────────────────────────────── */
+
+.connectionStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.errorBanner {
+  background: #5c2a2a;
+  color: #f4a0a0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.dotConnected {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4caf7d;
+  flex-shrink: 0;
+}
+
+.dotConnecting {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6b5a4e;
+  flex-shrink: 0;
+  animation: pulse 1.4s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+.connectionText {
+  font-size: 0.78rem;
+  color: #9d8b7a;
+  font-weight: 500;
+}
+
+/* ─── Entry view ──────────────────────────────────────────────────────────── */
+
+.entryView {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #9d8b7a;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.label {
+  font-size: 0.88rem;
+  color: #f5e6d3;
+}
+
+.select {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #f5e6d3;
+  font-size: 0.88rem;
+  padding: 7px 10px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.select:hover:not(:disabled),
+.select:focus:not(:disabled) {
+  border-color: rgba(245, 166, 35, 0.4);
+}
+
+.select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.input {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #f5e6d3;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  padding: 9px 12px;
+  outline: none;
+  text-transform: uppercase;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input::placeholder {
+  text-transform: none;
+  letter-spacing: 0;
+  color: #6b5a4e;
+  font-weight: 400;
+  font-size: 0.88rem;
+}
+
+.input:hover:not(:disabled),
+.input:focus:not(:disabled) {
+  border-color: rgba(245, 166, 35, 0.4);
+}
+
+.input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.primaryBtn {
+  background: linear-gradient(135deg, #f5a623, #ff6b35);
+  color: #1a0f05;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s;
+  box-shadow: 0 4px 16px rgba(245, 166, 35, 0.3);
+  width: 100%;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(245, 166, 35, 0.45);
+}
+
+.primaryBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  color: #6b5a4e;
+  font-size: 0.8rem;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ─── Waiting room view ───────────────────────────────────────────────────── */
+
+.waitingView {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.codeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.codeLabel {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #9d8b7a;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.playerListLabel {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #9d8b7a;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.playerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f5a623, #ff6b35);
+  color: #1a0f05;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.playerName {
+  flex: 1;
+  font-size: 0.9rem;
+  color: #f5e6d3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hostBadge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: rgba(245, 166, 35, 0.15);
+  border: 1px solid rgba(245, 166, 35, 0.3);
+  color: #f5a623;
+  padding: 2px 7px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.readyDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4caf7d;
+  flex-shrink: 0;
+}
+
+.notReadyDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  flex-shrink: 0;
+}
+
+/* ─── Waiting room actions ────────────────────────────────────────────────── */
+
+.waitingActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.readyBtn {
+  background: rgba(76, 175, 125, 0.12);
+  border: 1.5px solid rgba(76, 175, 125, 0.35);
+  border-radius: 10px;
+  color: #4caf7d;
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.readyBtn:hover {
+  background: rgba(76, 175, 125, 0.22);
+  border-color: rgba(76, 175, 125, 0.55);
+}
+
+.readyBtnActive {
+  background: rgba(76, 175, 125, 0.22);
+  border: 1.5px solid rgba(76, 175, 125, 0.55);
+  border-radius: 10px;
+  color: #4caf7d;
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.startBtn {
+  background: rgba(245, 166, 35, 0.08);
+  border: 1.5px solid rgba(245, 166, 35, 0.2);
+  border-radius: 10px;
+  color: #9d8b7a;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.leaveBtn {
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: #9d8b7a;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.leaveBtn:hover {
+  background: rgba(255, 80, 60, 0.08);
+  border-color: rgba(255, 80, 60, 0.3);
+  color: #ff6b5a;
+}

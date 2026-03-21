@@ -1,9 +1,11 @@
 .boardWrapper {
   position: relative;
-  background: #bbada0;
-  border-radius: 8px;
+  background: #2d1f14;
+  border-radius: 16px;
   padding: 12px;
   box-sizing: border-box;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5),
+              inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .grid {
@@ -18,8 +20,8 @@
 .cell {
   width: 100px;
   height: 100px;
-  background: rgba(238, 228, 218, 0.35);
-  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 10px;
 }
 
 .tiles {
@@ -31,15 +33,18 @@
 .overlay {
   position: absolute;
   inset: 0;
-  background: rgba(238, 228, 218, 0.73);
-  border-radius: 8px;
+  background: rgba(18, 13, 8, 0.82);
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
+  backdrop-filter: blur(4px);
 }
 
 .overlay p {
   font-size: 2.5rem;
-  font-weight: bold;
-  color: #776e65;
+  font-weight: 900;
+  color: #f5a623;
+  letter-spacing: -1px;
+  text-shadow: 0 0 30px rgba(245, 166, 35, 0.4);
 }
