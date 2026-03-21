@@ -13,9 +13,12 @@ const Tile = memo(({ tile }: TileProps) => {
   const x = tile.col * (CELL_SIZE + GAP);
   const y = tile.row * (CELL_SIZE + GAP);
 
+  const valueClass = styles[`tile${tile.value}`]
+    ?? (tile.value >= 16384 ? styles.tileHuge : styles.tileLarge);
+
   const classNames = [
     styles.tile,
-    styles[`tile${tile.value}`] ?? styles.tileLarge,
+    valueClass,
     tile.isNew ? styles.tileNew : '',
     tile.merged ? styles.tileMerged : '',
   ]

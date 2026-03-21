@@ -9,7 +9,7 @@ const secret = (): string => {
 
 export const signToken = (
   payload: Omit<AuthTokenPayload, 'iat' | 'exp'>,
-  expiresIn: string = '7d',
+  expiresIn: string = '2h',
 ): string =>
   jwt.sign(payload, secret(), { expiresIn } as jwt.SignOptions);
 

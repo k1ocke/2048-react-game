@@ -27,11 +27,12 @@ const defaultProps = {
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 describe('UserBadge', () => {
-  it('renders nothing while loading', () => {
+  it('renders a skeleton placeholder while loading', () => {
     const { container } = render(
       <UserBadge {...defaultProps} user={null} isLoading={true} />,
     );
-    expect(container.firstChild).toBeNull();
+    expect(container.firstChild).toBeInTheDocument();
+    expect(container.firstChild).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('shows Guest label and Sign up button when user is null', () => {

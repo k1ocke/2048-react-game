@@ -6,6 +6,7 @@ import { db } from '../db';
 import type { ServerMessage } from '../types';
 import { RoomManager } from './RoomManager';
 import { GameSession } from './GameSession';
+import { logger } from '../logger';
 
 const clientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('room:create'), maxPlayers: z.union([z.literal(2), z.literal(3), z.literal(4)]) }),
@@ -81,7 +82,7 @@ export const attachWebSocketServer = (
     Promise.allSettled(statsWrites).then((results) => {
       for (const r of results) {
         if (r.status === 'rejected') {
-          console.error('Failed to upsert stats:', r.reason);
+          logger.error({ reason: r.reason }, 'Failed to upsert stats');
         }
       }
     });
@@ -188,8 +189,8 @@ export const attachWebSocketServer = (
             { userId, username, isReady: false, score: 0, status: 'waiting' },
             clientMsg.maxPlayers,
           );
-          ws.roomId = room.roomId;
-          broadcastToRoom(room.roomId, { type: 'room:state', room });
+          ws.roomId = room.id;
+          broadcastToRoom(room.id, { type: 'room:state', room });
           break;
         }
 
@@ -199,7 +200,7 @@ export const attachWebSocketServer = (
             const prev = roomManager.leaveRoom(prevRoomId, userId);
             ws.roomId = undefined;
             if (prev) {
-              broadcastToRoom(prev.roomId, { type: 'room:state', room: prev });
+              broadcastToRoom(prev.id, { type: 'room:state', room: prev });
             } else {
               sessions.delete(prevRoomId);
             }
@@ -219,8 +220,8 @@ export const attachWebSocketServer = (
             });
             break;
           }
-          ws.roomId = room.roomId;
-          broadcastToRoom(room.roomId, { type: 'room:state', room });
+          ws.roomId = room.id;
+          broadcastToRoom(room.id, { type: 'room:state', room });
           break;
         }
 
@@ -389,7 +390,7 @@ export const attachWebSocketServer = (
     });
 
     ws.on('error', (err) => {
-      console.error('WebSocket error:', err);
+      logger.error({ err }, 'WebSocket error');
     });
   });
 

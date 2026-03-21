@@ -21,7 +21,7 @@ const reducer = (state: GameState, action: Action): GameState => {
   }
 };
 
-export const useGame = (onMove?: (direction: Direction) => void) => {
+export const useGame = (onMove?: (direction: Direction) => void, isModalOpen?: boolean) => {
   const [state, dispatch] = useReducer(reducer, undefined, () => createInitialState(4));
 
   const handleMove = useCallback((direction: Direction) => {
@@ -44,8 +44,14 @@ export const useGame = (onMove?: (direction: Direction) => void) => {
     handleMoveRef.current = handleMove;
   });
 
+  const isModalOpenRef = useRef(isModalOpen ?? false);
+  useLayoutEffect(() => {
+    isModalOpenRef.current = isModalOpen ?? false;
+  });
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (isModalOpenRef.current) return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
       const map: Record<string, Direction> = {

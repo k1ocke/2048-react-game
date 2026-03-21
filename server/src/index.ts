@@ -1,15 +1,15 @@
 import 'dotenv/config';
 
 if (!process.env.DATABASE_URL) {
-  console.error('FATAL: DATABASE_URL env var is required');
+  process.stderr.write('FATAL: DATABASE_URL env var is required\n');
   process.exit(1);
 }
 if (!process.env.JWT_SECRET) {
-  console.error('FATAL: JWT_SECRET env var is required');
+  process.stderr.write('FATAL: JWT_SECRET env var is required\n');
   process.exit(1);
 }
 if (process.env.JWT_SECRET === 'dev-secret-change-in-production') {
-  console.warn('WARNING: Using default JWT_SECRET. Set a strong random secret for production.');
+  process.stderr.write('WARNING: Using default JWT_SECRET. Set a strong random secret for production.\n');
 }
 
 import http from 'http';
@@ -18,6 +18,7 @@ import { attachWebSocketServer } from './ws/server';
 import { RoomManager } from './ws/RoomManager';
 import { pool } from './db';
 import { runMigrations } from './migrate';
+import { logger } from './logger';
 
 const PORT = parseInt(process.env.PORT ?? '4000', 10);
 const ROOM_CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
@@ -29,7 +30,7 @@ const wss = attachWebSocketServer(httpServer, roomManager);
 setInterval(() => roomManager.cleanupStaleRooms(), ROOM_CLEANUP_INTERVAL_MS).unref();
 
 const shutdown = async (signal: string) => {
-  console.log(`${signal} received — shutting down gracefully`);
+  logger.info({ signal }, 'Shutting down gracefully');
   wss.close();
   httpServer.close(async () => {
     await pool.end();
@@ -42,21 +43,21 @@ process.on('SIGTERM', () => void shutdown('SIGTERM'));
 process.on('SIGINT', () => void shutdown('SIGINT'));
 
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught exception:', err);
+  logger.error({ err }, 'Uncaught exception');
   void shutdown('uncaughtException');
 });
 process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled rejection:', reason);
+  logger.error({ reason }, 'Unhandled rejection');
   void shutdown('unhandledRejection');
 });
 
 runMigrations()
   .then(() => {
     httpServer.listen(PORT, () => {
-      console.log(`2048 server listening on http://localhost:${PORT}`);
+      logger.info({ port: PORT }, '2048 server listening');
     });
   })
   .catch((err) => {
-    console.error('Migration failed:', err);
+    logger.error({ err }, 'Migration failed');
     process.exit(1);
   });

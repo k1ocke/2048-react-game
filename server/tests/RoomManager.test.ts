@@ -27,12 +27,12 @@ describe('RoomManager', () => {
       expect(room.maxPlayers).toBe(2);
       expect(room.players).toHaveLength(1);
       expect(room.players[0].userId).toBe('host-1');
-      expect(room.roomId).toMatch(/^[A-Z0-9]{6}$/);
+      expect(room.id).toMatch(/^[A-Z0-9]{6}$/);
     });
 
     it('generates a unique room ID stored in the manager', () => {
       const room = manager.createRoom(makePlayer(), 2);
-      expect(manager.getRoom(room.roomId)).toBeDefined();
+      expect(manager.getRoom(room.id)).toBeDefined();
     });
   });
 
@@ -42,7 +42,7 @@ describe('RoomManager', () => {
       const room = manager.createRoom(host, 3);
 
       const player2 = makePlayer({ userId: 'user-2', username: 'Bob' });
-      const updated = manager.joinRoom(room.roomId, player2);
+      const updated = manager.joinRoom(room.id, player2);
 
       expect(updated).not.toBeNull();
       expect(updated!.players).toHaveLength(2);
@@ -57,22 +57,22 @@ describe('RoomManager', () => {
     it('returns null when room is full', () => {
       const host = makePlayer({ userId: 'host-1' });
       const room = manager.createRoom(host, 2);
-      manager.joinRoom(room.roomId, makePlayer({ userId: 'user-2' }));
+      manager.joinRoom(room.id, makePlayer({ userId: 'user-2' }));
 
       // Third player — should fail
-      const result = manager.joinRoom(room.roomId, makePlayer({ userId: 'user-3' }));
+      const result = manager.joinRoom(room.id, makePlayer({ userId: 'user-3' }));
       expect(result).toBeNull();
     });
 
     it('returns null when room has already started', () => {
       const host = makePlayer({ userId: 'host-1' });
       const room = manager.createRoom(host, 2);
-      manager.joinRoom(room.roomId, makePlayer({ userId: 'user-2' }));
-      manager.setReady(room.roomId, 'host-1');
-      manager.setReady(room.roomId, 'user-2');
-      manager.startGame(room.roomId);
+      manager.joinRoom(room.id, makePlayer({ userId: 'user-2' }));
+      manager.setReady(room.id, 'host-1');
+      manager.setReady(room.id, 'user-2');
+      manager.startGame(room.id);
 
-      const result = manager.joinRoom(room.roomId, makePlayer({ userId: 'user-3' }));
+      const result = manager.joinRoom(room.id, makePlayer({ userId: 'user-3' }));
       expect(result).toBeNull();
     });
   });
@@ -82,17 +82,17 @@ describe('RoomManager', () => {
       const host = makePlayer({ userId: 'host-1' });
       const room = manager.createRoom(host, 2);
 
-      const result = manager.leaveRoom(room.roomId, 'host-1');
+      const result = manager.leaveRoom(room.id, 'host-1');
       expect(result).toBeNull();
-      expect(manager.getRoom(room.roomId)).toBeUndefined();
+      expect(manager.getRoom(room.id)).toBeUndefined();
     });
 
     it('transfers host when the host leaves', () => {
       const host = makePlayer({ userId: 'host-1' });
       const room = manager.createRoom(host, 3);
-      manager.joinRoom(room.roomId, makePlayer({ userId: 'user-2', username: 'Bob' }));
+      manager.joinRoom(room.id, makePlayer({ userId: 'user-2', username: 'Bob' }));
 
-      const updated = manager.leaveRoom(room.roomId, 'host-1');
+      const updated = manager.leaveRoom(room.id, 'host-1');
       expect(updated).not.toBeNull();
       expect(updated!.hostId).toBe('user-2');
       expect(updated!.players).toHaveLength(1);
@@ -101,9 +101,9 @@ describe('RoomManager', () => {
     it('removes a non-host player without changing host', () => {
       const host = makePlayer({ userId: 'host-1' });
       const room = manager.createRoom(host, 3);
-      manager.joinRoom(room.roomId, makePlayer({ userId: 'user-2' }));
+      manager.joinRoom(room.id, makePlayer({ userId: 'user-2' }));
 
-      const updated = manager.leaveRoom(room.roomId, 'user-2');
+      const updated = manager.leaveRoom(room.id, 'user-2');
       expect(updated).not.toBeNull();
       expect(updated!.hostId).toBe('host-1');
       expect(updated!.players).toHaveLength(1);
@@ -119,7 +119,7 @@ describe('RoomManager', () => {
       const host = makePlayer({ userId: 'host-1' });
       const room = manager.createRoom(host, 2);
 
-      const updated = manager.setReady(room.roomId, 'host-1');
+      const updated = manager.setReady(room.id, 'host-1');
       expect(updated).not.toBeNull();
       expect(updated!.players[0].isReady).toBe(true);
     });
@@ -133,11 +133,11 @@ describe('RoomManager', () => {
     it('transitions status to playing when all players are ready', () => {
       const host = makePlayer({ userId: 'host-1' });
       const room = manager.createRoom(host, 2);
-      manager.joinRoom(room.roomId, makePlayer({ userId: 'user-2' }));
-      manager.setReady(room.roomId, 'host-1');
-      manager.setReady(room.roomId, 'user-2');
+      manager.joinRoom(room.id, makePlayer({ userId: 'user-2' }));
+      manager.setReady(room.id, 'host-1');
+      manager.setReady(room.id, 'user-2');
 
-      const started = manager.startGame(room.roomId);
+      const started = manager.startGame(room.id);
       expect(started).not.toBeNull();
       expect(started!.status).toBe('playing');
     });
@@ -145,19 +145,19 @@ describe('RoomManager', () => {
     it('returns null if not all players are ready', () => {
       const host = makePlayer({ userId: 'host-1' });
       const room = manager.createRoom(host, 2);
-      manager.joinRoom(room.roomId, makePlayer({ userId: 'user-2' }));
-      manager.setReady(room.roomId, 'host-1');
+      manager.joinRoom(room.id, makePlayer({ userId: 'user-2' }));
+      manager.setReady(room.id, 'host-1');
       // user-2 not ready
 
-      expect(manager.startGame(room.roomId)).toBeNull();
+      expect(manager.startGame(room.id)).toBeNull();
     });
 
     it('returns null with only one player', () => {
       const host = makePlayer({ userId: 'host-1' });
       const room = manager.createRoom(host, 2);
-      manager.setReady(room.roomId, 'host-1');
+      manager.setReady(room.id, 'host-1');
 
-      expect(manager.startGame(room.roomId)).toBeNull();
+      expect(manager.startGame(room.id)).toBeNull();
     });
   });
 
@@ -165,31 +165,31 @@ describe('RoomManager', () => {
     it('removes finished rooms older than 1 hour', () => {
       const host = makePlayer({ userId: 'host-1' });
       const room = manager.createRoom(host, 2);
-      manager.joinRoom(room.roomId, makePlayer({ userId: 'user-2' }));
-      manager.setReady(room.roomId, 'host-1');
-      manager.setReady(room.roomId, 'user-2');
-      manager.startGame(room.roomId);
-      manager.finishRoom(room.roomId);
+      manager.joinRoom(room.id, makePlayer({ userId: 'user-2' }));
+      manager.setReady(room.id, 'host-1');
+      manager.setReady(room.id, 'user-2');
+      manager.startGame(room.id);
+      manager.finishRoom(room.id);
 
       // Manually age the room
-      const roomState = manager.getRoom(room.roomId)!;
+      const roomState = manager.getRoom(room.id)!;
       roomState.finishedAt = Date.now() - 2 * 60 * 60 * 1000; // 2 hours ago
 
       manager.cleanupStaleRooms();
-      expect(manager.getRoom(room.roomId)).toBeUndefined();
+      expect(manager.getRoom(room.id)).toBeUndefined();
     });
 
     it('keeps finished rooms younger than 1 hour', () => {
       const host = makePlayer({ userId: 'host-1' });
       const room = manager.createRoom(host, 2);
-      manager.joinRoom(room.roomId, makePlayer({ userId: 'user-2' }));
-      manager.setReady(room.roomId, 'host-1');
-      manager.setReady(room.roomId, 'user-2');
-      manager.startGame(room.roomId);
-      manager.finishRoom(room.roomId);
+      manager.joinRoom(room.id, makePlayer({ userId: 'user-2' }));
+      manager.setReady(room.id, 'host-1');
+      manager.setReady(room.id, 'user-2');
+      manager.startGame(room.id);
+      manager.finishRoom(room.id);
 
       manager.cleanupStaleRooms();
-      expect(manager.getRoom(room.roomId)).toBeDefined();
+      expect(manager.getRoom(room.id)).toBeDefined();
     });
   });
 });

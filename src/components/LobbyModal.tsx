@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { ClientMessage, GameRoom } from '../types/multiplayer';
 import { getInitials } from '../utils/formatters';
 import { useFocusTrap } from '../utils/useFocusTrap';
@@ -30,7 +30,28 @@ const LobbyModal = memo(({
 }: LobbyModalProps) => {
   const [maxPlayers, setMaxPlayers] = useState<2 | 3 | 4>(2);
   const [joinCode, setJoinCode] = useState('');
+  const [visibleError, setVisibleError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const errorDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Show new errors and auto-dismiss after 5 seconds
+  useEffect(() => {
+    if (error) {
+      setVisibleError(error);
+      if (errorDismissTimerRef.current) clearTimeout(errorDismissTimerRef.current);
+      errorDismissTimerRef.current = setTimeout(() => setVisibleError(null), 5000);
+    } else {
+      setVisibleError(null);
+    }
+    return () => {
+      if (errorDismissTimerRef.current) clearTimeout(errorDismissTimerRef.current);
+    };
+  }, [error]);
+
+  const dismissError = useCallback(() => {
+    if (errorDismissTimerRef.current) clearTimeout(errorDismissTimerRef.current);
+    setVisibleError(null);
+  }, []);
 
   useFocusTrap(dialogRef, isOpen);
 
@@ -62,11 +83,13 @@ const LobbyModal = memo(({
   if (!isOpen) return null;
 
   const handleCreate = () => {
+    dismissError();
     sendMessage({ type: 'room:create', maxPlayers });
   };
 
   const handleJoin = () => {
     if (joinCode.trim().length === 0) return;
+    dismissError();
     sendMessage({ type: 'room:join', roomId: joinCode.toUpperCase() });
   };
 
@@ -117,8 +140,8 @@ const LobbyModal = memo(({
           </span>
         </div>
 
-        {error && (
-          <p className={styles.errorBanner} role="alert">{error}</p>
+        {visibleError && (
+          <p className={styles.errorBanner} role="alert" onClick={dismissError}>{visibleError}</p>
         )}
 
         {room === null ? (
@@ -199,9 +222,11 @@ const LobbyModal = memo(({
                       <span className={styles.hostBadge}>Host</span>
                     )}
                     <span
-                      className={player.isReady ? styles.readyDot : styles.notReadyDot}
+                      className={player.isReady ? styles.readyIndicator : styles.notReadyIndicator}
                       aria-label={player.isReady ? 'Ready' : 'Not ready'}
-                    />
+                    >
+                      {player.isReady ? '✓' : '…'}
+                    </span>
                   </li>
                 ))}
               </ul>

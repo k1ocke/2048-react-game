@@ -6,7 +6,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 110;
   animation: fadeIn 0.18s ease;
 }
 
@@ -343,20 +343,21 @@
   flex-shrink: 0;
 }
 
-.readyDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #4caf7d;
+.readyIndicator {
+  color: #4caf7d;
+  font-size: 0.8rem;
+  font-weight: 700;
   flex-shrink: 0;
+  min-width: 16px;
+  text-align: center;
 }
 
-.notReadyDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
+.notReadyIndicator {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.8rem;
   flex-shrink: 0;
+  min-width: 16px;
+  text-align: center;
 }
 
 /* ─── Waiting room actions ────────────────────────────────────────────────── */

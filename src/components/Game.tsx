@@ -42,11 +42,13 @@ const Game = () => {
     }
   }, [room?.status, sendMessage]);
 
-  const { state, handleMove, restart } = useGame(onMove);
+  const { matchHistory, postGameOpen, setPostGameOpen } = useMatchHistory(rankings, room);
+
+  const isModalOpen = lobbyOpen || authOpen || profileOpen || (postGameOpen && matchHistory.length > 0);
+  const { state, handleMove, restart } = useGame(onMove, isModalOpen);
   const currentUserId = user?.id ?? '';
 
   const { isNewRecord } = useGameStats(state, token, refreshUser, addEntry, addHistoryEntry);
-  const { matchHistory, postGameOpen, setPostGameOpen } = useMatchHistory(rankings, room);
   useMultiplayerScoreSync(state, sendMessage, room);
   useTouchControls(handleMove, boardRef);
 
@@ -62,6 +64,7 @@ const Game = () => {
   const handleLogout = useCallback(() => { logout(); setProfileOpen(false); }, [logout]);
   // U6: Remove restart() from handlePlayAgain — restart fires on game:start
   const handlePlayAgain = useCallback(() => { sendMessage({ type: 'room:ready' }); }, [sendMessage]);
+  const handlePostGameClose = useCallback(() => { setPostGameOpen(false); }, [setPostGameOpen]);
   const handlePostGameLeave = useCallback(() => { setPostGameOpen(false); leaveRoom(); }, [leaveRoom, setPostGameOpen]);
 
   return (
@@ -166,6 +169,7 @@ const Game = () => {
           currentUserId={currentUserId}
           onPlayAgain={handlePlayAgain}
           onLeave={handlePostGameLeave}
+          onClose={handlePostGameClose}
         />
       )}
     </div>

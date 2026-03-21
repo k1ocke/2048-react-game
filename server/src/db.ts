@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import type { UserRow, LeaderboardRow } from './types';
+import { logger } from './logger';
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -13,7 +14,7 @@ pool.on('connect', (client) => {
 });
 
 pool.on('error', (err) => {
-  console.error('PostgreSQL pool error:', err);
+  logger.error({ err }, 'PostgreSQL pool error');
 });
 
 const USER_SELECT = `

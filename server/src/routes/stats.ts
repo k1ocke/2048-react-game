@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db';
 import { requireAuth } from '../middleware/requireAuth';
 import { gameEndSchema } from '../validate';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -21,7 +22,7 @@ router.post('/game-end', requireAuth, async (req, res) => {
     await db.upsertStats(userId, { won, score, moves });
     res.json({ ok: true });
   } catch (err) {
-    console.error('POST /stats/game-end error', err);
+    logger.error({ err }, 'POST /stats/game-end error');
     res.status(500).json({ code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' });
   }
 });

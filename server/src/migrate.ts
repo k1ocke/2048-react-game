@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'fs/promises';
 import { join } from 'path';
 import { pool } from './db';
+import { logger } from './logger';
 
 export const runMigrations = async (): Promise<void> => {
   await pool.query(`
@@ -21,7 +22,7 @@ export const runMigrations = async (): Promise<void> => {
       await client.query(sql);
       await client.query('INSERT INTO schema_migrations (filename) VALUES ($1)', [file]);
       await client.query('COMMIT');
-      console.log(`Applied migration: ${file}`);
+      logger.info({ file }, 'Applied migration');
     } catch (err) {
       await client.query('ROLLBACK');
       throw new Error(`Migration ${file} failed: ${err}`);

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../db';
 import type { LeaderboardRow } from '../types';
 import { requireAuth } from '../middleware/requireAuth';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -41,7 +42,7 @@ router.get('/', async (req, res) => {
     leaderboardCache.set(limit, { entries, expiresAt: Date.now() + CACHE_TTL_MS });
     res.json({ entries, total: entries.length });
   } catch (err) {
-    console.error('GET /leaderboard error', err);
+    logger.error({ err }, 'GET /leaderboard error');
     res.status(500).json({ code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' });
   }
 });
@@ -65,7 +66,7 @@ router.get('/me', requireAuth, async (req, res) => {
     meRankCache.set(userId, { result, expiresAt: Date.now() + ME_CACHE_TTL_MS });
     res.json({ rank: result.rank, surrounding: result.surrounding });
   } catch (err) {
-    console.error('GET /leaderboard/me error', err);
+    logger.error({ err }, 'GET /leaderboard/me error');
     res.status(500).json({ code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' });
   }
 });

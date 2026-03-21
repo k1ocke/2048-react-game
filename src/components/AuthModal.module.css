@@ -6,7 +6,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 110;
   animation: fadeIn 0.18s ease;
 }
 
@@ -183,4 +183,20 @@
 .guestLink:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.inputError {
+  border-color: rgba(255, 107, 107, 0.5) !important;
+}
+
+.fieldError {
+  color: #ff6b6b;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.passwordHint {
+  color: #9d8b7a;
+  font-size: 0.78rem;
+  margin: 0;
 }

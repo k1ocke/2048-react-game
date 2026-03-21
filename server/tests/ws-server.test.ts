@@ -285,7 +285,7 @@ describe('Room lifecycle', () => {
     // Player 1 creates room
     send(mc1, { type: 'room:create', maxPlayers: 2 });
     const createMsg = await mc1.next('room:state');
-    const roomId = (createMsg['room'] as Record<string, unknown>)['roomId'] as string;
+    const roomId = (createMsg['room'] as Record<string, unknown>)['id'] as string;
 
     // Player 2 joins
     const mc2 = track(await openClient(serverAddress));
@@ -299,7 +299,7 @@ describe('Room lifecycle', () => {
     for (const state of [s1, s2]) {
       const room = state['room'] as Record<string, unknown>;
       expect((room['players'] as unknown[]).length).toBe(2);
-      expect(room['roomId']).toBe(roomId);
+      expect(room['id']).toBe(roomId);
     }
   });
 
@@ -311,7 +311,7 @@ describe('Room lifecycle', () => {
     await authenticate(mc1, token1);
     send(mc1, { type: 'room:create', maxPlayers: 2 });
     const createMsg = await mc1.next('room:state');
-    const roomId = (createMsg['room'] as Record<string, unknown>)['roomId'] as string;
+    const roomId = (createMsg['room'] as Record<string, unknown>)['id'] as string;
 
     const mc2 = track(await openClient(serverAddress));
     await authenticate(mc2, token2);
@@ -347,7 +347,7 @@ describe('Room lifecycle', () => {
     await authenticate(mc1, token1);
     send(mc1, { type: 'room:create', maxPlayers: 2 });
     const createMsg = await mc1.next('room:state');
-    const roomId = (createMsg['room'] as Record<string, unknown>)['roomId'] as string;
+    const roomId = (createMsg['room'] as Record<string, unknown>)['id'] as string;
 
     const mc2 = track(await openClient(serverAddress));
     await authenticate(mc2, token2);
@@ -411,7 +411,7 @@ const setupPlayingGame = async (
   await authenticate(mc1, token1);
   send(mc1, { type: 'room:create', maxPlayers: 2 });
   const createMsg = await mc1.next('room:state');
-  const roomId = (createMsg['room'] as Record<string, unknown>)['roomId'] as string;
+  const roomId = (createMsg['room'] as Record<string, unknown>)['id'] as string;
 
   const mc2 = track(await openClient(serverAddress));
   await authenticate(mc2, token2);

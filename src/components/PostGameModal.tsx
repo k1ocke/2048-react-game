@@ -13,6 +13,7 @@ interface PostGameModalProps {
   currentUserId: string;
   onPlayAgain: () => void;
   onLeave: () => void;
+  onClose: () => void;
 }
 
 const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
@@ -25,6 +26,7 @@ const PostGameModal = memo(({
   currentUserId,
   onPlayAgain,
   onLeave,
+  onClose,
 }: PostGameModalProps) => {
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -34,11 +36,11 @@ const PostGameModal = memo(({
     if (!isOpen) return;
     dialogRef.current?.focus();
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onLeave();
+      if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isOpen, onLeave]);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -61,7 +63,7 @@ const PostGameModal = memo(({
       aria-modal="true"
       aria-label="Game Results"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onLeave();
+        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div className={styles.modal} ref={dialogRef} tabIndex={-1}>

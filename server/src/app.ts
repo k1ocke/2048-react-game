@@ -26,8 +26,17 @@ export const createApp = () => {
   });
 
   app.use('/api/v1/auth', authLimiter, authRouter);
-  app.use('/api/v1/me', meRouter);
-  app.use('/api/v1/stats', statsRouter);
+  const generalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    skip: () => process.env.NODE_ENV === 'test',
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { code: 'RATE_LIMITED', message: 'Too many requests, please try again later' },
+  });
+
+  app.use('/api/v1/me', generalLimiter, meRouter);
+  app.use('/api/v1/stats', generalLimiter, statsRouter);
   const leaderboardLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 30,

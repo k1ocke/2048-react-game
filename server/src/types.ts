@@ -85,7 +85,7 @@ export interface RoomPlayer {
 }
 
 export interface GameRoom {
-  roomId: string;
+  id: string;
   hostId: string;
   maxPlayers: 2 | 3 | 4;
   players: RoomPlayer[];

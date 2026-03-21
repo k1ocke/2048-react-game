@@ -29,6 +29,7 @@ const defaultProps = {
   currentUserId: 'u1',
   onPlayAgain: jest.fn(),
   onLeave: jest.fn(),
+  onClose: jest.fn(),
 };
 
 beforeEach(() => jest.clearAllMocks());

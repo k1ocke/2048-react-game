@@ -7,6 +7,7 @@ export interface RoomState extends GameRoom {
 const ROOM_ID_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const ROOM_ID_LENGTH = 6;
 const STALE_ROOM_TTL_MS = 60 * 60 * 1000; // 1 hour
+const STALE_WAITING_ROOM_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 const generateRoomId = (): string => {
   let id = '';
@@ -28,7 +29,7 @@ export class RoomManager {
     } while (this.rooms.has(roomId));
 
     const room: RoomState = {
-      roomId,
+      id: roomId,
       hostId: host.userId,
       maxPlayers,
       players: [{ ...host, isReady: false, status: 'waiting', score: 0 }],
@@ -143,6 +144,11 @@ export class RoomManager {
           }
           this.rooms.delete(roomId);
         }
+      } else if (room.status === 'waiting' && now - room.createdAt > STALE_WAITING_ROOM_TTL_MS) {
+        for (const player of room.players) {
+          this.userRoomIndex.delete(player.userId);
+        }
+        this.rooms.delete(roomId);
       }
     }
   }

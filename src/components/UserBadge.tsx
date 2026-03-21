@@ -12,7 +12,9 @@ interface UserBadgeProps {
 }
 
 const UserBadge = memo(({ user, isLoading, onSignInClick, onProfileClick }: UserBadgeProps) => {
-  if (isLoading) return null;
+  if (isLoading) {
+    return <div className={styles.skeleton} aria-hidden="true" />;
+  }
 
   if (!user || isGuest(user)) {
     return (

@@ -60,6 +60,13 @@
   flex-shrink: 0;
 }
 
+.skeleton {
+  width: 100px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
 .username {
   color: #f5e6d3;
   font-size: 0.85rem;

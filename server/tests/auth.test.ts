@@ -22,7 +22,7 @@ describe('POST /auth/register', () => {
 
     const res = await request(app)
       .post('/api/v1/auth/register')
-      .send({ username: 'testuser', password: 'password123' });
+      .send({ username: 'testuser', password: 'Password123' });
 
     expect(res.status).toBe(201);
     expect(res.body).toHaveProperty('token');
@@ -35,7 +35,7 @@ describe('POST /auth/register', () => {
 
     const res = await request(app)
       .post('/api/v1/auth/register')
-      .send({ username: 'taken', password: 'password123' });
+      .send({ username: 'taken', password: 'Password123' });
 
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('USERNAME_TAKEN');
@@ -44,7 +44,7 @@ describe('POST /auth/register', () => {
   it('returns 422 when username is too short', async () => {
     const res = await request(app)
       .post('/api/v1/auth/register')
-      .send({ username: 'ab', password: 'password123' });
+      .send({ username: 'ab', password: 'Password123' });
 
     expect(res.status).toBe(422);
     expect(res.body.code).toBe('VALIDATION_ERROR');
@@ -62,7 +62,7 @@ describe('POST /auth/register', () => {
   it('returns 422 when username contains invalid characters', async () => {
     const res = await request(app)
       .post('/api/v1/auth/register')
-      .send({ username: 'bad name!', password: 'password123' });
+      .send({ username: 'bad name!', password: 'Password123' });
 
     expect(res.status).toBe(422);
   });
@@ -72,12 +72,12 @@ describe('POST /auth/register', () => {
 
 describe('POST /auth/login', () => {
   it('returns 200 with token when credentials are correct', async () => {
-    const hash = await bcrypt.hash('password123', 12);
+    const hash = await bcrypt.hash('Password123', 12);
     db.findByUsername.mockResolvedValue({ ...mockFullUser, password_hash: hash });
 
     const res = await request(app)
       .post('/api/v1/auth/login')
-      .send({ username: 'testuser', password: 'password123' });
+      .send({ username: 'testuser', password: 'Password123' });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('token');
@@ -101,19 +101,19 @@ describe('POST /auth/login', () => {
 
     const res = await request(app)
       .post('/api/v1/auth/login')
-      .send({ username: 'nobody', password: 'password123' });
+      .send({ username: 'nobody', password: 'Password123' });
 
     expect(res.status).toBe(401);
     expect(res.body.code).toBe('INVALID_CREDENTIALS');
   });
 
   it('returns 401 when trying to log in as a guest', async () => {
-    const hash = await bcrypt.hash('password123', 12);
+    const hash = await bcrypt.hash('Password123', 12);
     db.findByUsername.mockResolvedValue({ ...mockGuestUser, password_hash: hash });
 
     const res = await request(app)
       .post('/api/v1/auth/login')
-      .send({ username: 'Guest-1234', password: 'password123' });
+      .send({ username: 'Guest-1234', password: 'Password123' });
 
     expect(res.status).toBe(401);
   });
@@ -123,6 +123,7 @@ describe('POST /auth/login', () => {
 
 describe('POST /auth/guest', () => {
   it('creates a guest session and returns 201 with guest token', async () => {
+    db.isUsernameTaken.mockResolvedValue(false);
     db.createUser.mockResolvedValue(mockGuestUser);
 
     const res = await request(app).post('/api/v1/auth/guest');
@@ -149,7 +150,7 @@ describe('POST /auth/upgrade', () => {
     const res = await request(app)
       .post('/api/v1/auth/upgrade')
       .set('Authorization', `Bearer ${getGuestToken()}`)
-      .send({ username: 'newuser', password: 'password123' });
+      .send({ username: 'newuser', password: 'Password123' });
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('token');
@@ -159,7 +160,7 @@ describe('POST /auth/upgrade', () => {
   it('returns 401 when called without a token', async () => {
     const res = await request(app)
       .post('/api/v1/auth/upgrade')
-      .send({ username: 'newuser', password: 'password123' });
+      .send({ username: 'newuser', password: 'Password123' });
 
     expect(res.status).toBe(401);
   });
@@ -171,7 +172,7 @@ describe('POST /auth/upgrade', () => {
     const res = await request(app)
       .post('/api/v1/auth/upgrade')
       .set('Authorization', `Bearer ${fullToken}`)
-      .send({ username: 'newuser', password: 'password123' });
+      .send({ username: 'newuser', password: 'Password123' });
 
     expect(res.status).toBe(401);
     expect(res.body.code).toBe('NOT_A_GUEST');
@@ -183,7 +184,7 @@ describe('POST /auth/upgrade', () => {
     const res = await request(app)
       .post('/api/v1/auth/upgrade')
       .set('Authorization', `Bearer ${getGuestToken()}`)
-      .send({ username: 'taken', password: 'password123' });
+      .send({ username: 'taken', password: 'Password123' });
 
     expect(res.status).toBe(409);
   });

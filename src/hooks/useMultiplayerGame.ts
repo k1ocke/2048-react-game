@@ -148,6 +148,7 @@ const reducer = (state: MultiplayerState, action: MultiplayerAction): Multiplaye
 
 const RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 30000;
+const MAX_RECONNECT_ATTEMPTS = 10;
 
 export const useMultiplayerGame = (token: string | null): UseMultiplayerGameReturn => {
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -205,13 +206,9 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
 
       switch (msg.type) {
         case 'room:state': {
-          // Server sends roomId; client type uses id — normalise
-          const raw = msg.room as GameRoom & { roomId?: string };
-          const roomId = raw.id ?? (raw as unknown as { roomId: string }).roomId ?? '';
           const normalized: GameRoom = {
-            ...raw,
-            id: roomId,
-            players: raw.players.map((p) => ({ ...p, isHost: p.userId === raw.hostId })),
+            ...msg.room,
+            players: msg.room.players.map((p) => ({ ...p, isHost: p.userId === msg.room.hostId })),
           };
           // Seed opponents list from room players when game is active
           if (normalized.status === 'playing' && myUserIdRef.current) {
@@ -247,9 +244,16 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
         case 'game:end':
           dispatch({ type: 'GAME_END', rankings: msg.rankings });
           break;
-        case 'room:error':
-          dispatch({ type: 'SET_ERROR', error: msg.message });
+        case 'room:error': {
+          const ROOM_ERROR_MESSAGES: Record<string, string> = {
+            JOIN_FAILED: 'This room is full or unavailable — try creating a new one.',
+            NOT_FOUND: 'Room not found — check the code and try again.',
+            ALREADY_STARTED: 'That game has already started.',
+          };
+          const friendly = ROOM_ERROR_MESSAGES[msg.code] ?? msg.message;
+          dispatch({ type: 'SET_ERROR', error: friendly });
           break;
+        }
         default:
           break;
       }
@@ -272,6 +276,10 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
       if (event.code === 4001) return;
 
       reconnectAttemptsRef.current += 1;
+      if (reconnectAttemptsRef.current > MAX_RECONNECT_ATTEMPTS) {
+        dispatch({ type: 'SET_ERROR', error: 'Connection lost. Please refresh the page.' });
+        return;
+      }
       const delay = Math.min(RECONNECT_DELAY_MS * reconnectAttemptsRef.current, MAX_RECONNECT_DELAY_MS);
       reconnectTimerRef.current = setTimeout(() => {
         if (!unmountedRef.current) connect();

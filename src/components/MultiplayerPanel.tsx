@@ -29,7 +29,7 @@ const MultiplayerPanel = ({ opponents, myScore, rankings, onLeave, connected }: 
         <>
           <div className={styles.myScoreRow}>
             <span className={styles.myScoreLabel}>Your score</span>
-            <span className={styles.myScoreValue}>{myScore}</span>
+            <span className={styles.myScoreValue}>{myScore.toLocaleString()}</span>
           </div>
 
           {opponents.length === 0 ? (
@@ -62,7 +62,7 @@ const MultiplayerPanel = ({ opponents, myScore, rankings, onLeave, connected }: 
                   #{entry.rank}
                 </span>
                 <span className={styles.rankingUsername}>{entry.username}</span>
-                <span className={styles.rankingScore}>{entry.score}</span>
+                <span className={styles.rankingScore}>{entry.score.toLocaleString()}</span>
               </div>
             );
           })}

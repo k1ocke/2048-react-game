@@ -3,6 +3,7 @@ import { db } from '../db';
 import { requireAuth } from '../middleware/requireAuth';
 import { patchMeSchema } from '../validate';
 import { toUserProfile } from '../types';
+import { logger } from '../logger';
 
 const router = Router();
 
@@ -16,7 +17,7 @@ router.get('/', requireAuth, async (req, res) => {
     }
     res.json(toUserProfile(user));
   } catch (err) {
-    console.error('GET /me error', err);
+    logger.error({ err }, 'GET /me error');
     res.status(500).json({ code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' });
   }
 });
@@ -43,7 +44,7 @@ router.patch('/', requireAuth, async (req, res) => {
     }
     res.json(toUserProfile(user));
   } catch (err) {
-    console.error('PATCH /me error', err);
+    logger.error({ err }, 'PATCH /me error');
     res.status(500).json({ code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' });
   }
 });

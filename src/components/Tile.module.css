@@ -48,4 +48,5 @@
 .tile512 { background: #edc850; color: #f9f6f2; font-size: 1.75rem; box-shadow: 0 4px 26px rgba(237,200,80,0.55); }
 .tile1024 { background: #edc53f; color: #f9f6f2; font-size: 1.5rem; box-shadow: 0 4px 28px rgba(237,197,63,0.6); }
 .tile2048 { background: #edc22e; color: #f9f6f2; font-size: 1.5rem; box-shadow: 0 4px 32px rgba(237,194,46,0.7), 0 0 60px rgba(237,194,46,0.25); }
-.tileLarge { background: #3c3a32; color: #f9f6f2; font-size: 1.25rem; box-shadow: 0 4px 14px rgba(0,0,0,0.45); }
+.tileLarge { background: #3c3a32; color: #f9f6f2; font-size: 1.25rem; box-shadow: 0 4px 14px rgba(0,0,0,0.45); overflow: hidden; }
+.tileHuge  { background: #1a1a12; color: #f9f6f2; font-size: 1rem; box-shadow: 0 4px 14px rgba(0,0,0,0.55); overflow: hidden; }
