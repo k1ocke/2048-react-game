@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { OpponentState } from '../hooks/useMultiplayerGame';
 import styles from './OpponentBoard.module.css';
 
@@ -25,7 +26,7 @@ const getCellClass = (value: number): string => {
   return TILE_CLASS_MAP[value] ?? styles.cellLarge;
 };
 
-const OpponentBoard = ({ opponent, isWinning }: OpponentBoardProps) => {
+const OpponentBoard = memo(({ opponent, isWinning }: OpponentBoardProps) => {
   const { username, score, status, boardSnapshot } = opponent;
 
   return (
@@ -68,6 +69,6 @@ const OpponentBoard = ({ opponent, isWinning }: OpponentBoardProps) => {
       </div>
     </div>
   );
-};
+});
 
 export default OpponentBoard;

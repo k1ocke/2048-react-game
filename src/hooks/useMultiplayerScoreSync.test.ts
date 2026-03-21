@@ -111,6 +111,54 @@ describe('useMultiplayerScoreSync', () => {
     );
   });
 
+  describe('throttling', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    it('throttles rapid successive playing updates after the first real move', () => {
+      const { rerender } = renderHook(
+        ({ state, room }: { state: GameState; room: GameRoom | null }) =>
+          useMultiplayerScoreSync(state, sendMessage, room),
+        { initialProps: { state: gameState({ moves: 1, score: 4 }), room: playingRoom() } },
+      );
+      const countAfterFirst = sendMessage.mock.calls.length;
+
+      // Second move immediately — should be throttled
+      act(() => {
+        rerender({ state: gameState({ moves: 2, score: 8 }), room: playingRoom() });
+      });
+      expect(sendMessage.mock.calls.length).toBe(countAfterFirst);
+
+      // Advance past throttle window — next move goes through
+      act(() => { jest.advanceTimersByTime(110); });
+      act(() => {
+        rerender({ state: gameState({ moves: 3, score: 12 }), room: playingRoom() });
+      });
+      expect(sendMessage.mock.calls.length).toBe(countAfterFirst + 1);
+    });
+
+    it('terminal status bypasses the throttle even when rapid', () => {
+      const { rerender } = renderHook(
+        ({ state, room }: { state: GameState; room: GameRoom | null }) =>
+          useMultiplayerScoreSync(state, sendMessage, room),
+        { initialProps: { state: gameState({ moves: 1 }), room: playingRoom() as GameRoom | null } },
+      );
+      // Rapid second move — throttled
+      act(() => {
+        rerender({ state: gameState({ moves: 2 }), room: playingRoom() });
+      });
+      sendMessage.mockClear();
+
+      // Terminal update — must always go through
+      act(() => {
+        rerender({ state: gameState({ status: 'lost', score: 512 }), room: null });
+      });
+      expect(sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'lost', score: 512 }),
+      );
+    });
+  });
+
   it('includes a board snapshot in the message', () => {
     const tile = makeTile(1, 4, 1, 2);
     const { rerender } = renderHook(

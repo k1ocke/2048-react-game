@@ -100,50 +100,53 @@ export const db = {
     userId: string,
     { won, score, moves }: { won: boolean; score: number; moves: number },
   ): Promise<void> {
-    await pool.query(
-      `INSERT INTO user_stats (user_id, total_games, wins, best_score, total_score, total_moves)
-       VALUES ($1, 1, $2, $3, $4, $5)
-       ON CONFLICT (user_id) DO UPDATE SET
-         total_games = user_stats.total_games + 1,
-         wins        = user_stats.wins        + EXCLUDED.wins,
-         best_score  = GREATEST(user_stats.best_score, EXCLUDED.best_score),
-         total_score = user_stats.total_score + EXCLUDED.total_score,
-         total_moves = user_stats.total_moves + EXCLUDED.total_moves,
-         updated_at  = NOW()`,
-      [userId, won ? 1 : 0, score, score, moves],
-    );
-    if (score > 0) {
-      await pool.query(
-        `INSERT INTO scores (user_id, score) VALUES ($1, $2)`,
-        [userId, score],
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO user_stats (user_id, total_games, wins, best_score, total_score, total_moves)
+         VALUES ($1, 1, $2, $3, $4, $5)
+         ON CONFLICT (user_id) DO UPDATE SET
+           total_games = user_stats.total_games + 1,
+           wins        = user_stats.wins        + EXCLUDED.wins,
+           best_score  = GREATEST(user_stats.best_score, EXCLUDED.best_score),
+           total_score = user_stats.total_score + EXCLUDED.total_score,
+           total_moves = user_stats.total_moves + EXCLUDED.total_moves,
+           updated_at  = NOW()`,
+        [userId, won ? 1 : 0, score, score, moves],
       );
+      if (score > 0) {
+        await client.query(
+          `INSERT INTO scores (user_id, score) VALUES ($1, $2)`,
+          [userId, score],
+        );
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
   },
 
   async getTopScores(limit: number): Promise<LeaderboardRow[]> {
     const { rows } = await pool.query<{
-      rank: string;
       user_id: string;
       username: string;
       avatar_url: string | null;
       score: number;
       achieved_at: Date;
     }>(
-      `SELECT
-         ROW_NUMBER() OVER (ORDER BY s.score DESC) AS rank,
-         s.user_id,
-         u.username,
-         u.avatar_url,
-         s.score,
-         s.achieved_at
+      `SELECT s.user_id, u.username, u.avatar_url, s.score, s.achieved_at
        FROM scores s
        JOIN users u ON u.id = s.user_id
        ORDER BY s.score DESC
        LIMIT $1`,
       [limit],
     );
-    return rows.map((r) => ({
-      rank: parseInt(r.rank, 10),
+    return rows.map((r, i) => ({
+      rank: i + 1,
       userId: r.user_id,
       username: r.username,
       avatarUrl: r.avatar_url,
@@ -165,18 +168,16 @@ export const db = {
     }>(
       `WITH ranked AS (
          SELECT
-           ROW_NUMBER() OVER (ORDER BY s.score DESC) AS rank,
+           RANK() OVER (ORDER BY s.score DESC) AS rank,
            s.user_id, s.score, s.achieved_at, u.username, u.avatar_url
          FROM scores s JOIN users u ON u.id = s.user_id
+       ),
+       user_pos AS (
+         SELECT rank FROM ranked WHERE user_id = $1 ORDER BY rank LIMIT 1
        )
-       SELECT * FROM ranked
-       WHERE rank BETWEEN (
-         SELECT rank FROM ranked WHERE user_id = $1 ORDER BY rank LIMIT 1
-       ) - 5
-       AND (
-         SELECT rank FROM ranked WHERE user_id = $1 ORDER BY rank LIMIT 1
-       ) + 5
-       ORDER BY rank`,
+       SELECT r.* FROM ranked r
+       JOIN user_pos up ON r.rank BETWEEN up.rank - 5 AND up.rank + 5
+       ORDER BY r.rank`,
       [userId],
     );
 

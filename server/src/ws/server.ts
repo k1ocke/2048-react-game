@@ -230,17 +230,22 @@ export const attachWebSocketServer = (
 
             broadcastToRoom(roomId, { type: 'game:end', rankings });
 
-            // Persist stats using client-reported scores
-            for (const state of session.getAllStates()) {
+            // Persist stats using client-reported scores (all writes in parallel)
+            const statsWrites = session.getAllStates().map((state) => {
               const clientScore = session.getClientScore(state.userId);
-              db.upsertStats(state.userId, {
+              return db.upsertStats(state.userId, {
                 won: (clientScore?.status ?? state.status) === 'won',
                 score: clientScore?.score ?? state.score,
                 moves: state.moves,
-              }).catch((err: unknown) => {
-                console.error('Failed to upsert stats for', state.userId, err);
               });
-            }
+            });
+            Promise.allSettled(statsWrites).then((results) => {
+              for (const r of results) {
+                if (r.status === 'rejected') {
+                  console.error('Failed to upsert stats:', r.reason);
+                }
+              }
+            });
 
             // Reset room to waiting so players can play again without rejoining
             const resetRoom = roomManager.resetRoom(roomId);

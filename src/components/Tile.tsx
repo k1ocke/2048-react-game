@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Tile as TileType } from '../types/game';
 import styles from './Tile.module.css';
 
@@ -8,7 +9,7 @@ interface TileProps {
 const CELL_SIZE = 100;
 const GAP = 12;
 
-const Tile = ({ tile }: TileProps) => {
+const Tile = memo(({ tile }: TileProps) => {
   const x = tile.col * (CELL_SIZE + GAP);
   const y = tile.row * (CELL_SIZE + GAP);
 
@@ -30,6 +31,6 @@ const Tile = ({ tile }: TileProps) => {
       {tile.value}
     </div>
   );
-};
+});
 
 export default Tile;

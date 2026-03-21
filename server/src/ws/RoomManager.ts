@@ -18,6 +18,8 @@ const generateRoomId = (): string => {
 
 export class RoomManager {
   private rooms: Map<string, RoomState> = new Map();
+  // O(1) reverse-index: userId → roomId
+  private userRoomIndex: Map<string, string> = new Map();
 
   createRoom(host: RoomPlayer, maxPlayers: 2 | 3 | 4): RoomState {
     let roomId: string;
@@ -35,6 +37,7 @@ export class RoomManager {
     };
 
     this.rooms.set(roomId, room);
+    this.userRoomIndex.set(host.userId, roomId);
     return room;
   }
 
@@ -47,6 +50,7 @@ export class RoomManager {
     if (room.players.some((p) => p.userId === player.userId)) return room;
 
     room.players.push({ ...player, isReady: false, status: 'waiting', score: 0 });
+    this.userRoomIndex.set(player.userId, roomId);
     return room;
   }
 
@@ -55,6 +59,7 @@ export class RoomManager {
     if (!room) return null;
 
     const remaining = room.players.filter((p) => p.userId !== userId);
+    this.userRoomIndex.delete(userId);
 
     if (remaining.length === 0) {
       // Room is now empty — dissolve it
@@ -124,12 +129,8 @@ export class RoomManager {
   }
 
   getRoomByUserId(userId: string): RoomState | undefined {
-    for (const room of this.rooms.values()) {
-      if (room.players.some((p) => p.userId === userId)) {
-        return room;
-      }
-    }
-    return undefined;
+    const roomId = this.userRoomIndex.get(userId);
+    return roomId ? this.rooms.get(roomId) : undefined;
   }
 
   cleanupStaleRooms(): void {
@@ -137,6 +138,9 @@ export class RoomManager {
     for (const [roomId, room] of this.rooms.entries()) {
       if (room.status === 'finished' && room.finishedAt !== undefined) {
         if (now - room.finishedAt > STALE_ROOM_TTL_MS) {
+          for (const player of room.players) {
+            this.userRoomIndex.delete(player.userId);
+          }
           this.rooms.delete(roomId);
         }
       }
