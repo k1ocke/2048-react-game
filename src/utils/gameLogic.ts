@@ -35,8 +35,12 @@ const getRandomPositions = (size: number, count: number): [number, number][] => 
       all.push([r, c]);
     }
   }
-  const shuffled = all.sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
+  // Fisher-Yates shuffle — unbiased, unlike array.sort(Math.random)
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+  return all.slice(0, count);
 };
 
 const getEmptyCells = (tiles: Tile[], size: number): [number, number][] => {

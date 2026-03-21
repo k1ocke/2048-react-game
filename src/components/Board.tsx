@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { GameState } from '../types/game';
 import Tile from './Tile';
 import styles from './Board.module.css';
@@ -9,7 +10,7 @@ interface BoardProps {
 const CELL_SIZE = 100;
 const GAP = 12;
 
-const Board = ({ state }: BoardProps) => {
+const Board = memo(({ state }: BoardProps) => {
   const { tiles, size } = state;
   const boardSize = size * CELL_SIZE + (size + 1) * GAP;
 
@@ -32,6 +33,6 @@ const Board = ({ state }: BoardProps) => {
       )}
     </div>
   );
-};
+});
 
 export default Board;

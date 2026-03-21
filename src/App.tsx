@@ -1,5 +1,10 @@
 import Game from './components/Game';
+import ErrorBoundary from './components/ErrorBoundary';
 
-const App = () => <Game />;
+const App = () => (
+  <ErrorBoundary>
+    <Game />
+  </ErrorBoundary>
+);
 
 export default App;

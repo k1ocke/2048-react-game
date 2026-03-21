@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import styles from './ScoreBox.module.css';
 
 interface ScoreBoxProps {
@@ -6,12 +7,12 @@ interface ScoreBoxProps {
   isNewRecord?: boolean;
 }
 
-const ScoreBox = ({ label, value, isNewRecord }: ScoreBoxProps) => (
+const ScoreBox = memo(({ label, value, isNewRecord }: ScoreBoxProps) => (
   <div className={`${styles.box} ${isNewRecord ? styles.newRecord : ''}`}>
     <span className={styles.label}>{label}</span>
     <span className={styles.value}>{value.toLocaleString()}</span>
     {isNewRecord && <span className={styles.badge}>Best!</span>}
   </div>
-);
+));
 
 export default ScoreBox;
