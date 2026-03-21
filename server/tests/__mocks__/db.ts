@@ -34,6 +34,7 @@ export const db = {
   findByUsername: jest.fn<Promise<UserRow | null>, [string]>(),
   findById: jest.fn<Promise<UserRow | null>, [string]>(),
   isUsernameTaken: jest.fn<Promise<boolean>, [string]>(),
+  isUsernameTakenByOther: jest.fn<Promise<boolean>, [string, string]>(),
   createUser: jest.fn<Promise<UserRow>, [string, string, boolean?]>(),
   updateUser: jest.fn<Promise<UserRow | null>, [string, object]>(),
   upgradeGuest: jest.fn<Promise<UserRow | null>, [string, string, string]>(),

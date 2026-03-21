@@ -40,6 +40,38 @@ export const attachWebSocketServer = (
     }
   };
 
+  const handleGameEnd = (roomId: string, session: GameSession): void => {
+    sessions.delete(roomId);
+    const room = roomManager.getRoom(roomId);
+    const rankings = session.getFinalRankings().map((r) => {
+      const p = room?.players.find((pl) => pl.userId === r.userId);
+      return { userId: r.userId, username: p?.username ?? r.userId, score: r.score, rank: r.rank };
+    });
+
+    broadcastToRoom(roomId, { type: 'game:end', rankings });
+
+    const statsWrites = session.getAllStates().map((state) => {
+      const clientScore = session.getClientScore(state.userId);
+      return db.upsertStats(state.userId, {
+        won: (clientScore?.status ?? state.status) === 'won',
+        score: clientScore?.score ?? state.score,
+        moves: state.moves,
+      });
+    });
+    Promise.allSettled(statsWrites).then((results) => {
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          console.error('Failed to upsert stats:', r.reason);
+        }
+      }
+    });
+
+    const resetRoom = roomManager.resetRoom(roomId);
+    if (resetRoom) {
+      broadcastToRoom(roomId, { type: 'room:state', room: resetRoom });
+    }
+  };
+
   wss.on('connection', (ws: AuthenticatedSocket) => {
     let authenticated = false;
 
@@ -216,42 +248,7 @@ export const attachWebSocketServer = (
           });
 
           if (session.isComplete()) {
-            sessions.delete(roomId);
-
-            const rankings = session.getFinalRankings().map((r) => {
-              const p = room.players.find((pl) => pl.userId === r.userId);
-              return {
-                userId: r.userId,
-                username: p?.username ?? r.userId,
-                score: r.score,
-                rank: r.rank,
-              };
-            });
-
-            broadcastToRoom(roomId, { type: 'game:end', rankings });
-
-            // Persist stats using client-reported scores (all writes in parallel)
-            const statsWrites = session.getAllStates().map((state) => {
-              const clientScore = session.getClientScore(state.userId);
-              return db.upsertStats(state.userId, {
-                won: (clientScore?.status ?? state.status) === 'won',
-                score: clientScore?.score ?? state.score,
-                moves: state.moves,
-              });
-            });
-            Promise.allSettled(statsWrites).then((results) => {
-              for (const r of results) {
-                if (r.status === 'rejected') {
-                  console.error('Failed to upsert stats:', r.reason);
-                }
-              }
-            });
-
-            // Reset room to waiting so players can play again without rejoining
-            const resetRoom = roomManager.resetRoom(roomId);
-            if (resetRoom) {
-              broadcastToRoom(roomId, { type: 'room:state', room: resetRoom });
-            }
+            handleGameEnd(roomId, session);
           }
           break;
         }
@@ -270,11 +267,23 @@ export const attachWebSocketServer = (
       clearTimeout(authTimer);
       if (ws.userId) {
         connections.delete(ws.userId);
-        // Auto-leave room on disconnect
         if (ws.roomId) {
-          const updated = roomManager.leaveRoom(ws.roomId, ws.userId);
+          const roomId = ws.roomId;
+          // If an active game session exists, mark the disconnecting player as lost
+          const session = sessions.get(roomId);
+          if (session) {
+            const playerState = session.getState(ws.userId);
+            if (playerState?.status === 'playing') {
+              session.setClientScore(ws.userId, playerState.score, 'lost');
+              if (session.isComplete()) {
+                handleGameEnd(roomId, session);
+              }
+            }
+          }
+          // Remove player from room (no-op if room was already reset by handleGameEnd)
+          const updated = roomManager.leaveRoom(roomId, ws.userId);
           if (updated) {
-            broadcastToRoom(ws.roomId, { type: 'room:state', room: updated });
+            broadcastToRoom(roomId, { type: 'room:state', room: updated });
           }
         }
       }

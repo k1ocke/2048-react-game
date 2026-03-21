@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { OpponentState } from '../hooks/useMultiplayerGame';
 import OpponentBoard from './OpponentBoard';
 import styles from './MultiplayerPanel.module.css';
@@ -10,9 +11,10 @@ interface MultiplayerPanelProps {
 }
 
 const MultiplayerPanel = ({ opponents, myScore, rankings, onLeave }: MultiplayerPanelProps) => {
-  const highestOpponentScore = opponents.length > 0
-    ? Math.max(...opponents.map((o) => o.score))
-    : -1;
+  const highestOpponentScore = useMemo(
+    () => (opponents.length > 0 ? Math.max(...opponents.map((o) => o.score)) : -1),
+    [opponents],
+  );
 
   return (
     <div className={styles.panel}>

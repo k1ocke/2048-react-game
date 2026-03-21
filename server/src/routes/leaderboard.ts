@@ -1,9 +1,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../db';
+import type { LeaderboardRow } from '../types';
 import { requireAuth } from '../middleware/requireAuth';
 
 const router = Router();
+
+const CACHE_TTL_MS = 10_000;
+interface CacheEntry { entries: LeaderboardRow[]; expiresAt: number; }
+const leaderboardCache = new Map<number, CacheEntry>();
 
 const limitSchema = z
   .string()
@@ -21,8 +26,15 @@ router.get('/', async (req, res) => {
 
   const limit = parsed.data;
 
+  const cached = leaderboardCache.get(limit);
+  if (cached && cached.expiresAt > Date.now()) {
+    res.json({ entries: cached.entries, total: cached.entries.length });
+    return;
+  }
+
   try {
     const entries = await db.getTopScores(limit);
+    leaderboardCache.set(limit, { entries, expiresAt: Date.now() + CACHE_TTL_MS });
     res.json({ entries, total: entries.length });
   } catch (err) {
     console.error('GET /leaderboard error', err);

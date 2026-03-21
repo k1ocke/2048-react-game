@@ -44,7 +44,7 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [myScore, setMyScore] = useState(0);
   const [myStatus, setMyStatus] = useState<'playing' | 'won' | 'lost'>('playing');
-  const [opponents, setOpponents] = useState<OpponentState[]>([]);
+  const [opponentsRecord, setOpponentsRecord] = useState<Record<string, OpponentState>>({});
   const [rankings, setRankings] = useState<Array<{ userId: string; username: string; score: number; rank: number }> | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -108,12 +108,14 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
           setRoom(normalized);
           // Seed opponents list from room players when game is active
           if (normalized.status === 'playing' && myUserIdRef.current) {
-            setOpponents((prev) => {
-              const existing = new Set(prev.map((o) => o.userId));
-              const seeded = normalized.players
-                .filter((p) => p.userId !== myUserIdRef.current && !existing.has(p.userId))
-                .map((p) => ({ userId: p.userId, username: p.username, score: 0, status: 'playing' as const, boardSnapshot: [] }));
-              return seeded.length > 0 ? [...prev, ...seeded] : prev;
+            setOpponentsRecord((prev) => {
+              const additions: Record<string, OpponentState> = {};
+              for (const p of normalized.players) {
+                if (p.userId !== myUserIdRef.current && !prev[p.userId]) {
+                  additions[p.userId] = { userId: p.userId, username: p.username, score: 0, status: 'playing', boardSnapshot: [] };
+                }
+              }
+              return Object.keys(additions).length > 0 ? { ...prev, ...additions } : prev;
             });
           }
           break;
@@ -124,31 +126,22 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
             setMyScore(score);
             setMyStatus(status);
           } else {
-            setOpponents((prev) => {
-              const existing = prev.find((o) => o.userId === userId);
-              if (existing) {
-                return prev.map((o) =>
-                  o.userId === userId ? { ...o, score, status, boardSnapshot } : o
-                );
-              }
-              // Need username — look it up from room players if available
-              return [
-                ...prev,
-                { userId, username: userId, score, status, boardSnapshot },
-              ];
+            setOpponentsRecord((prev) => {
+              const existing = prev[userId];
+              const username = existing?.username ?? userId;
+              return { ...prev, [userId]: { userId, username, score, status, boardSnapshot } };
             });
             // Enrich username from room state when room is available
             setRoom((prevRoom) => {
               if (prevRoom) {
-                setOpponents((prev) =>
-                  prev.map((o) => {
-                    if (o.userId === userId && o.username === userId) {
-                      const player = prevRoom.players.find((p) => p.userId === userId);
-                      if (player) return { ...o, username: player.username };
-                    }
-                    return o;
-                  })
-                );
+                setOpponentsRecord((prev) => {
+                  const o = prev[userId];
+                  if (o && o.username === userId) {
+                    const player = prevRoom.players.find((p) => p.userId === userId);
+                    if (player) return { ...prev, [userId]: { ...o, username: player.username } };
+                  }
+                  return prev;
+                });
               }
               return prevRoom;
             });
@@ -160,7 +153,13 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
           setRankings(null);
           setMyScore(0);
           setMyStatus('playing');
-          setOpponents((prev) => prev.map((o) => ({ ...o, score: 0, status: 'playing' as const, boardSnapshot: [] })));
+          setOpponentsRecord((prev) => {
+            const reset: Record<string, OpponentState> = {};
+            for (const [id, o] of Object.entries(prev)) {
+              reset[id] = { ...o, score: 0, status: 'playing', boardSnapshot: [] };
+            }
+            return reset;
+          });
           break;
         case 'game:end':
           setRankings(msg.rankings);
@@ -187,7 +186,6 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
       // Reset room state on disconnect only when not in an active game.
       // During a game, keep the panel visible so the player isn't disoriented.
       setRoom((prev) => (prev?.status === 'playing' ? prev : null));
-      setOpponents((prev) => (prev.length > 0 ? prev : []));
 
       // Don't retry on auth failures — the token is bad
       if (event.code === 4001) return;
@@ -232,7 +230,7 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
   const leaveRoom = useCallback(() => {
     sendMessage({ type: 'room:leave' });
     setRoom(null);
-    setOpponents([]);
+    setOpponentsRecord({});
     setRankings(null);
     setMyScore(0);
     setMyStatus('playing');
@@ -246,7 +244,7 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
     leaveRoom,
     myScore,
     myStatus,
-    opponents,
+    opponents: Object.values(opponentsRecord),
     rankings,
   };
 };

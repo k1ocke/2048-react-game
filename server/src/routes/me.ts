@@ -32,12 +32,9 @@ router.patch('/', requireAuth, async (req, res) => {
   const userId = req.user!.sub;
 
   try {
-    if (username !== undefined) {
-      const current = await db.findById(userId);
-      if (current?.username !== username && await db.isUsernameTaken(username)) {
-        res.status(409).json({ code: 'USERNAME_TAKEN', message: 'That username is already taken' });
-        return;
-      }
+    if (username !== undefined && await db.isUsernameTakenByOther(username, userId)) {
+      res.status(409).json({ code: 'USERNAME_TAKEN', message: 'That username is already taken' });
+      return;
     }
     const user = await db.updateUser(userId, { username, avatarUrl });
     if (!user) {

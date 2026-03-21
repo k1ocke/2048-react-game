@@ -3,6 +3,13 @@ import type { UserRow, LeaderboardRow } from './types';
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  max: 10,
+  connectionTimeoutMillis: 3000,
+  idleTimeoutMillis: 30000,
+});
+
+pool.on('connect', (client) => {
+  void client.query('SET statement_timeout = 5000');
 });
 
 const USER_SELECT = `
@@ -38,24 +45,42 @@ export const db = {
     return rows[0].exists;
   },
 
+  async isUsernameTakenByOther(username: string, excludeUserId: string): Promise<boolean> {
+    const { rows } = await pool.query<{ exists: boolean }>(
+      `SELECT EXISTS(SELECT 1 FROM users WHERE username = $1 AND id != $2) AS exists`,
+      [username, excludeUserId],
+    );
+    return rows[0].exists;
+  },
+
   async createUser(
     username: string,
     passwordHash: string,
     isGuest = false,
   ): Promise<UserRow> {
-    const { rows } = await pool.query<UserRow>(
-      `INSERT INTO users (username, password_hash, is_guest)
-       VALUES ($1, $2, $3)
-       RETURNING id, username, password_hash, avatar_url, is_guest, created_at,
-                 NULL AS total_games, NULL AS wins, NULL AS best_score,
-                 NULL AS total_score, NULL AS total_moves`,
-      [username, passwordHash, isGuest],
-    );
-    await pool.query(
-      `INSERT INTO user_stats (user_id) VALUES ($1) ON CONFLICT DO NOTHING`,
-      [rows[0].id],
-    );
-    return rows[0];
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query<UserRow>(
+        `INSERT INTO users (username, password_hash, is_guest)
+         VALUES ($1, $2, $3)
+         RETURNING id, username, password_hash, avatar_url, is_guest, created_at,
+                   NULL AS total_games, NULL AS wins, NULL AS best_score,
+                   NULL AS total_score, NULL AS total_moves`,
+        [username, passwordHash, isGuest],
+      );
+      await client.query(
+        `INSERT INTO user_stats (user_id) VALUES ($1) ON CONFLICT DO NOTHING`,
+        [rows[0].id],
+      );
+      await client.query('COMMIT');
+      return rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   },
 
   async updateUser(

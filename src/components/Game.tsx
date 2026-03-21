@@ -48,6 +48,10 @@ const Game = () => {
   useMultiplayerScoreSync(state, sendMessage, room);
   useTouchControls(handleMove);
 
+  const handleLogout = useCallback(() => { logout(); setProfileOpen(false); }, [logout]);
+  const handlePlayAgain = useCallback(() => { restart(); sendMessage({ type: 'room:ready' }); }, [restart, sendMessage]);
+  const handlePostGameLeave = useCallback(() => { setPostGameOpen(false); leaveRoom(); }, [leaveRoom, setPostGameOpen]);
+
   return (
     <div className={styles.container}>
       <div className={styles.gameArea}>
@@ -131,7 +135,7 @@ const Game = () => {
         <ProfilePanel
           onClose={() => setProfileOpen(false)}
           user={user}
-          onLogout={() => { logout(); setProfileOpen(false); }}
+          onLogout={handleLogout}
           onUpgrade={upgradeGuest}
           onUpdateUsername={updateUsername}
           onOpen={refreshUser}
@@ -144,14 +148,8 @@ const Game = () => {
           history={matchHistory.slice(0, -1)}
           room={room}
           currentUserId={currentUserId}
-          onPlayAgain={() => {
-            restart();
-            sendMessage({ type: 'room:ready' });
-          }}
-          onLeave={() => {
-            setPostGameOpen(false);
-            leaveRoom();
-          }}
+          onPlayAgain={handlePlayAgain}
+          onLeave={handlePostGameLeave}
         />
       )}
     </div>

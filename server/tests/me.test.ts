@@ -59,8 +59,7 @@ describe('GET /me', () => {
 describe('PATCH /me', () => {
   it('updates username and returns updated profile', async () => {
     const updated = { ...mockFullUser, username: 'newname' };
-    db.findById.mockResolvedValue(mockFullUser);
-    db.isUsernameTaken.mockResolvedValue(false);
+    db.isUsernameTakenByOther.mockResolvedValue(false);
     db.updateUser.mockResolvedValue(updated);
 
     const res = await request(app)
@@ -76,7 +75,6 @@ describe('PATCH /me', () => {
   it('updates avatarUrl and returns updated profile', async () => {
     const url = 'https://example.com/avatar.png';
     const updated = { ...mockFullUser, avatar_url: url };
-    db.findById.mockResolvedValue(mockFullUser);
     db.updateUser.mockResolvedValue(updated);
 
     const res = await request(app)
@@ -89,8 +87,7 @@ describe('PATCH /me', () => {
   });
 
   it('returns 409 when new username is already taken', async () => {
-    db.findById.mockResolvedValue(mockFullUser);
-    db.isUsernameTaken.mockResolvedValue(true);
+    db.isUsernameTakenByOther.mockResolvedValue(true);
 
     const res = await request(app)
       .patch('/api/v1/me')

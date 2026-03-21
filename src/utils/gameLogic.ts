@@ -131,7 +131,9 @@ export const move = (state: GameState, direction: Direction): GameState => {
   const withNew = addRandomTile(newTiles, size);
   const newScore = state.score + totalScore;
   const bestScore = Math.max(newScore, state.bestScore);
-  localStorage.setItem('2048-best', String(bestScore));
+  if (bestScore > state.bestScore) {
+    localStorage.setItem('2048-best', String(bestScore));
+  }
 
   const hasWon = withNew.some((t) => t.value === 2048);
   const isLost = !hasWon && checkLost(withNew, size);

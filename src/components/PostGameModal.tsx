@@ -39,7 +39,7 @@ const PostGameModal = ({
 
   if (!isOpen) return null;
 
-  const sorted = [...rankings].sort((a, b) => a.rank - b.rank);
+  const sorted = rankings;
   const winner = sorted[0];
 
   // Derive ready state only during the 'waiting' phase (Play Again lobby).
@@ -106,8 +106,7 @@ const PostGameModal = ({
             <p className={styles.historyTitle}>Previous Rounds</p>
             <ul className={styles.historyList}>
               {[...history].reverse().map((match, i) => {
-                const matchSorted = [...match.rankings].sort((a, b) => a.rank - b.rank);
-                const matchWinner = matchSorted[0];
+                const matchWinner = match.rankings[0];
                 const roundNum = history.length - i;
                 return (
                   <li key={i} className={styles.historyRow}>
@@ -116,7 +115,7 @@ const PostGameModal = ({
                       {MEDAL[1]} {matchWinner?.username}
                     </span>
                     <span className={styles.historyScores}>
-                      {matchSorted.map((e) => (
+                      {match.rankings.map((e) => (
                         <span
                           key={e.userId}
                           className={e.userId === currentUserId ? styles.historyMe : undefined}
