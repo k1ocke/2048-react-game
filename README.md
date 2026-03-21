@@ -1,73 +1,121 @@
-# React + TypeScript + Vite
+# 2048 — Full-Stack Multiplayer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A full-stack 2048 game with real-time multiplayer, persistent leaderboards, and JWT-based authentication.
 
-Currently, two official plugins are available:
+**Stack:** React 19 + TypeScript + Vite (client) · Express + WebSocket + PostgreSQL (server)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## Quick Start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
 
-## Expanding the ESLint configuration
+- Node.js 20+
+- PostgreSQL 14+
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 1. Database
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sql
+-- Run the schema (see docs/ARCHITECTURE.md for full DDL)
+psql -U postgres -c "CREATE DATABASE game2048;"
+psql -U postgres -d game2048 -f server/schema.sql
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. Server
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd server
+cp .env.example .env          # fill in DATABASE_URL and JWT_SECRET
+npm install
+npm run dev                   # listens on :4000
 ```
+
+### 3. Client
+
+```bash
+npm install
+npm run dev                   # listens on :3000, proxies /api and /ws to :4000
+```
+
+Open `http://localhost:3000`.
+
+---
+
+## NPM Scripts
+
+| Location | Command | Description |
+|----------|---------|-------------|
+| client | `npm run dev` | Vite dev server (HMR) on port 3000 |
+| client | `npm run build` | TypeScript check + Vite production build |
+| client | `npm run test` | Jest unit tests |
+| client | `npm run lint` | ESLint + Prettier check |
+| client | `npm run typecheck` | `tsc --noEmit` |
+| server | `npm run dev` | ts-node dev server on port 4000 |
+| server | `npm run build` | Compile TypeScript to `dist/` |
+| server | `npm run test` | Jest + supertest API tests |
+| server | `npm run typecheck` | `tsc --noEmit` |
+
+---
+
+## Project Structure
+
+```
+/
+├── src/
+│   ├── components/       # React UI components
+│   ├── hooks/            # Custom React hooks
+│   ├── utils/            # Pure utility functions
+│   ├── types/            # TypeScript type definitions
+│   └── __mocks__/        # Jest module mocks
+├── server/
+│   ├── src/
+│   │   ├── routes/       # Express route handlers
+│   │   ├── ws/           # WebSocket server + room/game logic
+│   │   ├── middleware/   # Auth middleware
+│   │   ├── app.ts        # Express app factory
+│   │   ├── db.ts         # PostgreSQL access layer
+│   │   ├── jwt.ts        # Token sign/verify
+│   │   └── index.ts      # Server entry point
+│   └── tests/            # Server integration + unit tests
+├── docs/
+│   ├── API.md            # REST API + WebSocket protocol reference
+│   └── ARCHITECTURE.md   # Component, hook, and system architecture
+└── vite.config.ts
+```
+
+---
+
+## Environment Variables
+
+### Server (`server/.env`)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | Yes | — | PostgreSQL connection string |
+| `JWT_SECRET` | Yes | — | HS256 signing secret (min 32 chars) |
+| `PORT` | No | `4000` | HTTP/WS listen port |
+| `CORS_ORIGIN` | No | `http://localhost:3000` | Allowed CORS origin |
+| `NODE_ENV` | No | `development` | `development` / `test` / `production` |
+
+### Client (`/.env.local`)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `VITE_API_URL` | No | `""` | API base URL (empty = use Vite proxy) |
+
+---
+
+## Features
+
+- **Single-player** — classic 2048 with score tracking, local leaderboard, and game history
+- **Multiplayer** — real-time 2-4 player rooms via WebSocket with live opponent boards
+- **Authentication** — register/login with JWT; guest sessions that can be upgraded to full accounts
+- **Global leaderboard** — top scores persisted in PostgreSQL with personal rank context
+- **Score history** — last 20 games stored locally (moves, best tile, duration)
+
+---
+
+## Documentation
+
+- [API Reference](docs/API.md) — all REST endpoints and WebSocket message types
+- [Architecture](docs/ARCHITECTURE.md) — components, hooks, utilities, and server internals
