@@ -164,6 +164,120 @@ describe('useMultiplayerGame', () => {
     expect(mockWS.close).toHaveBeenCalled();
   });
 
+  it('updates opponent score on successive player:update messages', async () => {
+    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    openWS();
+
+    receiveMessage({
+      type: 'player:update',
+      userId: 'user-456',
+      score: 100,
+      status: 'playing',
+      boardSnapshot: [],
+    });
+
+    await waitFor(() => {
+      expect(result.current.opponents[0].score).toBe(100);
+    });
+
+    receiveMessage({
+      type: 'player:update',
+      userId: 'user-456',
+      score: 300,
+      status: 'playing',
+      boardSnapshot: [],
+    });
+
+    await waitFor(() => {
+      expect(result.current.opponents[0].score).toBe(300);
+    });
+  });
+
+  it('uses the latest player:update score, not an earlier stale one', async () => {
+    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    openWS();
+
+    // Two rapid updates — second must win
+    receiveMessage({ type: 'player:update', userId: 'user-456', score: 50, status: 'playing', boardSnapshot: [] });
+    receiveMessage({ type: 'player:update', userId: 'user-456', score: 200, status: 'playing', boardSnapshot: [] });
+
+    await waitFor(() => {
+      expect(result.current.opponents[0].score).toBe(200);
+    });
+  });
+
+  it('reflects correct terminal status for opponent', async () => {
+    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    openWS();
+
+    receiveMessage({ type: 'player:update', userId: 'user-456', score: 1024, status: 'playing', boardSnapshot: [] });
+
+    await waitFor(() => {
+      expect(result.current.opponents[0].status).toBe('playing');
+    });
+
+    receiveMessage({ type: 'player:update', userId: 'user-456', score: 2048, status: 'won', boardSnapshot: [] });
+
+    await waitFor(() => {
+      expect(result.current.opponents[0].score).toBe(2048);
+      expect(result.current.opponents[0].status).toBe('won');
+    });
+  });
+
+  it('does not update myScore when player:update is for a different user', async () => {
+    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    openWS();
+
+    receiveMessage({ type: 'player:update', userId: 'user-456', score: 9999, status: 'playing', boardSnapshot: [] });
+
+    await waitFor(() => {
+      expect(result.current.myScore).toBe(0);
+    });
+  });
+
+  it('resolves opponent username from room:state after initial player:update', async () => {
+    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    openWS();
+
+    // player:update arrives before room:state (userId used as placeholder username)
+    receiveMessage({
+      type: 'player:update',
+      userId: 'user-456',
+      score: 64,
+      status: 'playing',
+      boardSnapshot: [],
+    });
+
+    // room:state arrives with real username
+    receiveMessage({
+      type: 'room:state',
+      room: {
+        id: 'ROOM01',
+        hostId: 'user-123',
+        status: 'playing',
+        maxPlayers: 2,
+        createdAt: new Date().toISOString(),
+        players: [
+          { userId: 'user-123', username: 'alice', isReady: true },
+          { userId: 'user-456', username: 'bob', isReady: true },
+        ],
+      },
+    });
+
+    // Second player:update triggers username enrichment
+    receiveMessage({
+      type: 'player:update',
+      userId: 'user-456',
+      score: 128,
+      status: 'playing',
+      boardSnapshot: [],
+    });
+
+    await waitFor(() => {
+      expect(result.current.opponents[0].username).toBe('bob');
+    });
+  });
+
   it('resets scores, opponents and rankings on game:start', async () => {
     const { result } = renderHook(() => useMultiplayerGame(fakeToken));
     openWS();

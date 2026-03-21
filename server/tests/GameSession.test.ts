@@ -165,9 +165,130 @@ describe('GameSession', () => {
       expect(rankings[2]).toMatchObject({ userId: 'user-1', score: 100, rank: 3 });
     });
 
+    it('prefers client-reported score over server simulation score', () => {
+      const session = new GameSession();
+      session.addPlayer('user-1');
+      session.addPlayer('user-2');
+
+      // Server simulation accumulates some score via applyMove
+      session.setBoard('user-1', [
+        [8, 8, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+      ]);
+      session.applyMove('user-1', 'left'); // server sim score = 16
+
+      // Client reports a different (correct) score
+      session.setClientScore('user-1', 512, 'lost');
+      session.setClientScore('user-2', 256, 'lost');
+
+      const rankings = session.getFinalRankings();
+      // Must use client score (512), not server simulation score (16)
+      expect(rankings[0]).toMatchObject({ userId: 'user-1', score: 512, rank: 1 });
+      expect(rankings[1]).toMatchObject({ userId: 'user-2', score: 256, rank: 2 });
+    });
+
+    it('falls back to simulation score when no client score reported', () => {
+      const session = new GameSession();
+      session.addPlayer('user-1');
+      session.setBoard('user-1', [
+        [4, 4, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+      ]);
+      session.applyMove('user-1', 'left'); // server sim score = 8
+
+      const rankings = session.getFinalRankings();
+      expect(rankings[0].score).toBe(8);
+    });
+
     it('returns empty array when no players', () => {
       const session = new GameSession();
       expect(session.getFinalRankings()).toEqual([]);
+    });
+  });
+
+  describe('score sync — client score priority', () => {
+    it('getClientScore returns undefined before any score-update', () => {
+      const session = new GameSession();
+      session.addPlayer('user-1');
+      expect(session.getClientScore('user-1')).toBeUndefined();
+    });
+
+    it('setClientScore stores and overwrites score and status', () => {
+      const session = new GameSession();
+      session.addPlayer('user-1');
+
+      session.setClientScore('user-1', 100, 'playing');
+      expect(session.getClientScore('user-1')).toEqual({ score: 100, status: 'playing' });
+
+      session.setClientScore('user-1', 500, 'won');
+      expect(session.getClientScore('user-1')).toEqual({ score: 500, status: 'won' });
+    });
+
+    it('isComplete uses client status, ignoring server simulation status', () => {
+      const session = new GameSession();
+      session.addPlayer('user-1');
+      session.addPlayer('user-2');
+
+      // Server simulation shows user-1 as still playing
+      // but client reported won
+      session.setClientScore('user-1', 2048, 'won');
+      // user-2 client not done yet
+      expect(session.isComplete()).toBe(false);
+
+      session.setClientScore('user-2', 512, 'lost');
+      expect(session.isComplete()).toBe(true);
+    });
+
+    it('disconnect: preserves client score when marking player as lost', () => {
+      const session = new GameSession();
+      session.addPlayer('user-1');
+
+      // Simulate server board diverging from client
+      session.setBoard('user-1', [
+        [8, 8, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+      ]);
+      session.applyMove('user-1', 'left'); // server sim score = 16
+
+      // Client reported higher score before disconnect
+      session.setClientScore('user-1', 1024, 'playing');
+
+      // Simulate disconnect logic: preserve client score, mark lost
+      const existingClientScore = session.getClientScore('user-1');
+      const playerState = session.getState('user-1');
+      const effectiveStatus = existingClientScore?.status ?? playerState?.status;
+      expect(effectiveStatus).toBe('playing');
+
+      session.setClientScore(
+        'user-1',
+        existingClientScore?.score ?? playerState?.score ?? 0,
+        'lost',
+      );
+
+      // Must preserve the client score (1024), not the server sim score (16)
+      expect(session.getClientScore('user-1')).toEqual({ score: 1024, status: 'lost' });
+    });
+
+    it('disconnect: does not re-mark a player who already won as lost', () => {
+      const session = new GameSession();
+      session.addPlayer('user-1');
+
+      // Client already finished
+      session.setClientScore('user-1', 4096, 'won');
+
+      // Simulate disconnect logic
+      const existingClientScore = session.getClientScore('user-1');
+      const playerState = session.getState('user-1');
+      const effectiveStatus = existingClientScore?.status ?? playerState?.status;
+
+      // Should NOT mark as lost because effectiveStatus is 'won'
+      expect(effectiveStatus).toBe('won');
     });
   });
 

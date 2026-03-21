@@ -246,12 +246,15 @@ export const attachWebSocketServer = (
           const playerState = session.applyMove(userId, clientMsg.direction);
           if (!playerState) break;
 
-          // Broadcast board snapshot to opponents (score comes from game:score-update)
+          // Use the last client-reported score/status so opponents always see accurate values.
+          // The server simulation board diverges from the client (different random tiles), so
+          // playerState.score would be wrong. Fall back to it only before the first score-update.
+          const clientScore = session.getClientScore(userId);
           broadcastToRoom(roomId, {
             type: 'player:update',
             userId,
-            score: playerState.score,
-            status: playerState.status === 'playing' ? 'playing' : playerState.status,
+            score: clientScore?.score ?? playerState.score,
+            status: clientScore?.status ?? (playerState.status === 'playing' ? 'playing' : playerState.status),
             boardSnapshot: playerState.board,
           });
           break;
@@ -327,8 +330,15 @@ export const attachWebSocketServer = (
           const session = sessions.get(roomId);
           if (session) {
             const playerState = session.getState(ws.userId);
-            if (playerState?.status === 'playing') {
-              session.setClientScore(ws.userId, playerState.score, 'lost');
+            const existingClientScore = session.getClientScore(ws.userId);
+            // Use client-reported status to determine if still playing; preserve client score.
+            const effectiveStatus = existingClientScore?.status ?? playerState?.status;
+            if (effectiveStatus === 'playing') {
+              session.setClientScore(
+                ws.userId,
+                existingClientScore?.score ?? playerState?.score ?? 0,
+                'lost',
+              );
               if (session.isComplete()) {
                 handleGameEnd(roomId, session);
               }
