@@ -27,7 +27,7 @@ const generateGuestSuffix = (): string => {
 /** Cookie options for the auth token. */
 const tokenCookieOptions = (maxAgeSeconds: number) => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
   sameSite: 'lax' as const,
   path: '/',
   maxAge: maxAgeSeconds * 1000, // Express maxAge is in ms
@@ -192,7 +192,7 @@ router.post('/logout', requireAuth, (req, res) => {
     addToBlocklist(jti, exp);
   }
   logger.info({ event: 'logout', userId: sub });
-  res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' });
+  res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production', path: '/' });
   res.status(204).send();
 });
 

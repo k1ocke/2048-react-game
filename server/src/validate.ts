@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+// Trusted origins for user avatar images. Prevents stored tracking pixels
+// by ensuring avatar URLs only point to known image CDNs.
+const AVATAR_URL_ALLOWLIST = [
+  'https://secure.gravatar.com/',
+  'https://avatars.githubusercontent.com/',
+  'https://lh3.googleusercontent.com/',
+  'https://api.dicebear.com/',
+  'https://ui-avatars.com/',
+];
+
 export const registerSchema = z.object({
   username: z
     .string()
@@ -32,6 +42,10 @@ export const patchMeSchema = z.object({
     .url('avatarUrl must be a valid URL')
     .max(2048, 'avatarUrl must be at most 2048 characters')
     .regex(/^https:\/\//, 'avatarUrl must use HTTPS')
+    .refine(
+      (url) => AVATAR_URL_ALLOWLIST.some((prefix) => url.startsWith(prefix)),
+      { message: 'avatarUrl must be from an allowed image host' },
+    )
     .nullable()
     .optional(),
 });

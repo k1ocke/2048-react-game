@@ -73,7 +73,7 @@ describe('PATCH /me', () => {
   });
 
   it('updates avatarUrl and returns updated profile', async () => {
-    const url = 'https://example.com/avatar.png';
+    const url = 'https://secure.gravatar.com/avatar/abc123';
     const updated = { ...mockFullUser, avatar_url: url };
     db.updateUser.mockResolvedValue(updated);
 
@@ -84,6 +84,16 @@ describe('PATCH /me', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.avatarUrl).toBe(url);
+  });
+
+  it('returns 422 for avatarUrl from a disallowed domain', async () => {
+    const res = await request(app)
+      .patch('/api/v1/me')
+      .set('Authorization', `Bearer ${validToken()}`)
+      .send({ avatarUrl: 'https://evil.example.com/track.gif' });
+
+    expect(res.status).toBe(422);
+    expect(db.updateUser).not.toHaveBeenCalled();
   });
 
   it('returns 409 when new username is already taken', async () => {

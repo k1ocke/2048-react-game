@@ -81,36 +81,38 @@ unexpected 500 errors reach the logger, making brute-force detection impossible.
 
 ## LOW
 
-### LOW-1 — `frame-ancestors` in CSP Meta Tag Is Ignored by Browsers
+### LOW-1 — `frame-ancestors` in CSP Meta Tag Is Ignored by Browsers ✅ FIXED
 **OWASP**: A05 Security Misconfiguration | **File**: `index.html:7`
 The CSP spec requires browsers to ignore `frame-ancestors` in `<meta>` tags — only HTTP headers
 enforce it. Helmet's `X-Frame-Options: SAMEORIGIN` provides a partial fallback but
 `frame-ancestors 'none'` is not enforced.
 **Fix**: Move CSP to a Helmet HTTP header directive where `frame-ancestors` is honoured.
 
-### LOW-2 — Cookie `secure` Flag Tied Only to `NODE_ENV=production`
+### LOW-2 — Cookie `secure` Flag Tied Only to `NODE_ENV=production` ✅ FIXED
 **OWASP**: A02 Cryptographic Failures | **File**: `server/src/routes/auth.ts:28`
 A staging environment with `NODE_ENV=staging` over HTTPS would issue cookies without the
 `secure` flag.
 **Fix**: `secure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production'`
 
-### LOW-3 — `avatarUrl` Allows Stored Tracking Pixels
+### LOW-3 — `avatarUrl` Allows Stored Tracking Pixels ✅ FIXED
 **OWASP**: A10 Server-Side Request Forgery (partial) | **File**: `server/src/validate.ts:31-36`
 Any HTTPS URL is accepted as an avatar URL and served to all clients. An attacker can use it
 as a tracking pixel to harvest other users' IPs.
 **Fix**: Restrict to a whitelist of trusted image CDNs, or proxy images server-side.
 
-### LOW-4 — Missing `object-src` and `base-uri` CSP Directives
+### LOW-4 — Missing `object-src` and `base-uri` CSP Directives ✅ FIXED
 **OWASP**: A05 Security Misconfiguration | **File**: `index.html:7`
 The CSP lacks `object-src 'none'` (blocks plugins) and `base-uri 'self'` (prevents `<base>`
 tag injection).
 **Fix**: Add both directives to the CSP.
 
-### LOW-5 — `style-src 'unsafe-inline'` in CSP
+### LOW-5 — `style-src 'unsafe-inline'` in CSP ✅ ACCEPTED RISK
 **OWASP**: A05 Security Misconfiguration | **File**: `index.html:7`
 Inline styles are allowed, enabling CSS-based data exfiltration if an attacker achieves HTML
 injection. React's JSX escaping makes exploitation low-probability but not impossible.
-**Fix**: Replace with CSS nonces at build time, or document as accepted risk.
+**Decision**: `'unsafe-inline'` is retained. CSS nonce integration requires Vite build plugin
+changes and is not warranted given React's XSS mitigations. Risk accepted; re-evaluate if
+CSS-in-JS or dynamic style injection is added.
 
 ---
 

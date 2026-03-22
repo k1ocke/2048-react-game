@@ -12,7 +12,23 @@ import { csrfProtect } from './middleware/csrfProtect';
 export const createApp = () => {
   const app = express();
 
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        connectSrc: ["'self'", 'ws:', 'wss:'],
+        imgSrc: ["'self'", 'data:', 'https://secure.gravatar.com', 'https://avatars.githubusercontent.com', 'https://lh3.googleusercontent.com', 'https://api.dicebear.com', 'https://ui-avatars.com'],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'none'"],
+        formAction: ["'self'"],
+      },
+    },
+    frameguard: { action: 'deny' },
+  }));
   app.use(cors({
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
     credentials: true,
