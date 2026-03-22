@@ -121,7 +121,8 @@ const initialBoard = (): number[][] => {
 
 export class GameSession {
   private players: Map<string, PlayerGameState> = new Map();
-  // Client-reported scores override the server simulation for rankings
+  // Client-reported scores stored for real-time display broadcasts only.
+  // They are NOT used for final rankings or stats — use server state for those.
   private clientScores: Map<string, { score: number; status: 'playing' | 'won' | 'lost' }> = new Map();
   lastActivityAt: number = Date.now();
 
@@ -192,23 +193,39 @@ export class GameSession {
     return this.clientScores.get(userId);
   }
 
-  isComplete(): boolean {
-    if (this.players.size === 0) return false;
-    return Array.from(this.players.keys()).every((userId) => {
-      const client = this.clientScores.get(userId);
-      if (client) return client.status !== 'playing';
-      const sim = this.players.get(userId)!;
-      return sim.status === 'won' || sim.status === 'lost';
-    });
+  /**
+   * Authoritatively marks a player as won or lost in the server state.
+   * Called when the client reports a terminal status so that isComplete() and
+   * getFinalRankings() — which both rely on server state — reflect the outcome.
+   */
+  markPlayerDone(userId: string, status: 'won' | 'lost'): void {
+    const state = this.players.get(userId);
+    if (state && state.status === 'playing') {
+      state.status = status;
+      this.lastActivityAt = Date.now();
+    }
   }
 
+  /** Game is complete when every player's server-state status is terminal. */
+  isComplete(): boolean {
+    if (this.players.size === 0) return false;
+    return Array.from(this.players.values()).every(
+      (s) => s.status === 'won' || s.status === 'lost',
+    );
+  }
+
+  /** Rankings use server-computed scores only. Tiebreaker: won > lost. */
   getFinalRankings(): Array<{ userId: string; score: number; rank: number }> {
-    const entries = Array.from(this.players.keys()).map((userId) => {
-      const client = this.clientScores.get(userId);
-      const sim = this.players.get(userId)!;
-      return { userId, score: client?.score ?? sim.score };
+    const statusOrder: Record<PlayerGameState['status'], number> = { won: 0, lost: 1, playing: 2 };
+    const entries = Array.from(this.players.values()).map(({ userId, score, status }) => ({
+      userId,
+      score,
+      status,
+    }));
+    const sorted = entries.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return statusOrder[a.status] - statusOrder[b.status];
     });
-    const sorted = entries.sort((a, b) => b.score - a.score);
     return sorted.map((p, idx) => ({ userId: p.userId, score: p.score, rank: idx + 1 }));
   }
 }

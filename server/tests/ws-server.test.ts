@@ -490,11 +490,10 @@ describe('Game flow', () => {
   it('game:end is broadcast with correct rankings when all players send terminal status', async () => {
     const { mc1, mc2 } = await setupPlayingGame('ge-p1', 'ge-p2');
 
-    // p1 finishes first
+    // p1 reports lost; p2 reports won — rankings use server-computed scores, not these values
     send(mc1, { type: 'game:score-update', score: 500, status: 'lost' });
     await Promise.all([mc1.next('player:update'), mc2.next('player:update')]);
 
-    // p2 finishes → game:end triggered
     send(mc2, { type: 'game:score-update', score: 1000, status: 'won' });
 
     const [end1, end2] = await Promise.all([mc1.next('game:end'), mc2.next('game:end')]);
@@ -505,10 +504,12 @@ describe('Game flow', () => {
       expect(rankings).toHaveLength(2);
       const winner = rankings.find((r) => r['userId'] === 'ge-p2');
       const loser = rankings.find((r) => r['userId'] === 'ge-p1');
+      // At equal server scores (both 0 — no moves made), won > lost tiebreaker applies
       expect(winner!['rank']).toBe(1);
-      expect(winner!['score']).toBe(1000);
       expect(loser!['rank']).toBe(2);
-      expect(loser!['score']).toBe(500);
+      // Scores are server-computed (not client-reported 1000/500)
+      expect(typeof winner!['score']).toBe('number');
+      expect(typeof loser!['score']).toBe('number');
     }
   }, 15_000);
 
@@ -554,7 +555,7 @@ describe('Disconnection during game', () => {
   it('player disconnecting during a game is marked as lost', async () => {
     const { mc1, mc2 } = await setupPlayingGame('dc-lost-p1', 'dc-lost-p2');
 
-    // p2 finishes
+    // p2 finishes with 'won'
     send(mc2, { type: 'game:score-update', score: 200, status: 'won' });
     await Promise.all([mc1.next('player:update'), mc2.next('player:update')]);
 
@@ -567,11 +568,12 @@ describe('Disconnection during game', () => {
     const rankings = end['rankings'] as Array<Record<string, unknown>>;
     expect(rankings).toHaveLength(2);
 
-    // Disconnected p1 should be ranked below the winner
+    // p2 (won) ranks above p1 (lost) via status tiebreaker at equal server score
     const dcPlayer = rankings.find((r) => r['userId'] === 'dc-lost-p1');
     const winner = rankings.find((r) => r['userId'] === 'dc-lost-p2');
     expect(dcPlayer).toBeDefined();
     expect(winner!['rank']).toBe(1);
+    expect(dcPlayer!['rank']).toBe(2);
   }, 15_000);
 
   it('if disconnect completes the game (last player), game:end is broadcast', async () => {
@@ -591,15 +593,15 @@ describe('Disconnection during game', () => {
     expect(rankings).toHaveLength(2);
   }, 15_000);
 
-  it("disconnected player's client-reported score is preserved in rankings", async () => {
+  it("disconnected player's ranking uses server-computed score, not client-reported score", async () => {
     const { mc1, mc2 } = await setupPlayingGame('dc-score-p1', 'dc-score-p2');
 
-    const clientScoreBeforeDisconnect = 9999;
+    const fraudulentClientScore = 9999;
 
-    // p1 reports score before disconnecting
+    // p1 attempts to inflate score via client-reporting before disconnecting
     send(mc1, {
       type: 'game:score-update',
-      score: clientScoreBeforeDisconnect,
+      score: fraudulentClientScore,
       status: 'playing',
     });
     await Promise.all([mc1.next('player:update'), mc2.next('player:update')]);
@@ -617,8 +619,9 @@ describe('Disconnection during game', () => {
 
     const dcEntry = rankings.find((r) => r['userId'] === 'dc-score-p1');
     expect(dcEntry).toBeDefined();
-    // Must preserve the client-reported score, not the server simulation score
-    expect(dcEntry!['score']).toBe(clientScoreBeforeDisconnect);
+    // Server-computed score is used — fraudulent client score is rejected
+    expect(dcEntry!['score']).not.toBe(fraudulentClientScore);
+    expect(dcEntry!['score']).toBe(0);
   }, 15_000);
 });
 

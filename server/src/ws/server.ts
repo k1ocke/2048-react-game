@@ -72,10 +72,9 @@ export const attachWebSocketServer = (
     broadcastToRoom(roomId, { type: 'game:end', rankings });
 
     const statsWrites = session.getAllStates().map((state) => {
-      const clientScore = session.getClientScore(state.userId);
       return db.upsertStats(state.userId, {
-        won: (clientScore?.status ?? state.status) === 'won',
-        score: clientScore?.score ?? state.score,
+        won: state.status === 'won',
+        score: state.score,
         moves: state.moves,
       });
     });
@@ -100,9 +99,8 @@ export const attachWebSocketServer = (
     for (const [roomId, session] of sessions.entries()) {
       if (now - session.lastActivityAt > SESSION_IDLE_TIMEOUT_MS) {
         for (const state of session.getAllStates()) {
-          const clientScore = session.getClientScore(state.userId);
-          if ((clientScore?.status ?? state.status) === 'playing') {
-            session.setClientScore(state.userId, clientScore?.score ?? state.score, 'lost');
+          if (state.status === 'playing') {
+            session.markPlayerDone(state.userId, 'lost');
           }
         }
         handleGameEnd(roomId, session);
@@ -315,8 +313,12 @@ export const attachWebSocketServer = (
 
           const clientBoard = isValidBoard(rawClientBoard) ? rawClientBoard : undefined;
 
-          // Record client-reported score (authoritative for rankings)
+          // Store client-reported score for real-time display broadcasts only.
           session.setClientScore(userId, score, status);
+          // Propagate terminal status into server-authoritative state.
+          if (status === 'won' || status === 'lost') {
+            session.markPlayerDone(userId, status);
+          }
 
           const room = roomManager.getRoom(roomId);
           if (!room) break;
@@ -363,15 +365,8 @@ export const attachWebSocketServer = (
           const session = sessions.get(roomId);
           if (session) {
             const playerState = session.getState(ws.userId);
-            const existingClientScore = session.getClientScore(ws.userId);
-            // Use client-reported status to determine if still playing; preserve client score.
-            const effectiveStatus = existingClientScore?.status ?? playerState?.status;
-            if (effectiveStatus === 'playing') {
-              session.setClientScore(
-                ws.userId,
-                existingClientScore?.score ?? playerState?.score ?? 0,
-                'lost',
-              );
+            if (playerState?.status === 'playing') {
+              session.markPlayerDone(ws.userId, 'lost');
               if (session.isComplete()) {
                 handleGameEnd(roomId, session);
               }
