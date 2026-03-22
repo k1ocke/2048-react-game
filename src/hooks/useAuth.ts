@@ -17,6 +17,7 @@ export interface UseAuthReturn {
 const apiFetch = async (path: string, options?: RequestInit): Promise<Response> => {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
+    'X-Requested-With': 'fetch',
     ...(options?.headers ?? {}),
   };
   return fetch(`${API_BASE}${path}`, { ...options, headers, credentials: 'include' });

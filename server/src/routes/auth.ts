@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
@@ -15,9 +16,10 @@ const DUMMY_HASH = bcrypt.hashSync('dummy-password-never-used', 12);
 const GUEST_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const GUEST_SUFFIX_LENGTH = 8;
 const generateGuestSuffix = (): string => {
+  const bytes = randomBytes(GUEST_SUFFIX_LENGTH);
   let s = '';
   for (let i = 0; i < GUEST_SUFFIX_LENGTH; i++) {
-    s += GUEST_CHARS[Math.floor(Math.random() * GUEST_CHARS.length)];
+    s += GUEST_CHARS[bytes[i] % GUEST_CHARS.length];
   }
   return s;
 };

@@ -7,6 +7,7 @@ import meRouter from './routes/me';
 import statsRouter from './routes/stats';
 import leaderboardRouter from './routes/leaderboard';
 import { pool } from './db';
+import { csrfProtect } from './middleware/csrfProtect';
 
 export const createApp = () => {
   const app = express();
@@ -17,6 +18,7 @@ export const createApp = () => {
     credentials: true,
   }));
   app.use(express.json({ limit: '10kb' }));
+  app.use(csrfProtect);
 
   // Rate limit auth routes: 10 attempts per 15 minutes per IP (disabled in test)
   const authLimiter = rateLimit({

@@ -43,4 +43,4 @@ export const db = {
   getUserRank: jest.fn<Promise<{ rank: number; surrounding: LeaderboardRow[] } | null>, [string]>(),
 };
 
-export const pool = { query: jest.fn(), end: jest.fn() };
+export const pool = { query: jest.fn().mockResolvedValue({ rows: [] }), end: jest.fn() };

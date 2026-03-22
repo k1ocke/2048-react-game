@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import type { GameRoom, RoomPlayer } from '../types';
 
 export interface RoomState extends GameRoom {
@@ -10,9 +11,10 @@ const STALE_ROOM_TTL_MS = 60 * 60 * 1000; // 1 hour
 const STALE_WAITING_ROOM_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 const generateRoomId = (): string => {
+  const bytes = randomBytes(ROOM_ID_LENGTH);
   let id = '';
   for (let i = 0; i < ROOM_ID_LENGTH; i++) {
-    id += ROOM_ID_CHARS[Math.floor(Math.random() * ROOM_ID_CHARS.length)];
+    id += ROOM_ID_CHARS[bytes[i] % ROOM_ID_CHARS.length];
   }
   return id;
 };

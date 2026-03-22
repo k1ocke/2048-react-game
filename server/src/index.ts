@@ -18,6 +18,7 @@ import { attachWebSocketServer } from './ws/server';
 import { RoomManager } from './ws/RoomManager';
 import { pool } from './db';
 import { runMigrations } from './migrate';
+import { initBlocklist } from './blocklist';
 import { logger } from './logger';
 
 const PORT = parseInt(process.env.PORT ?? '4000', 10);
@@ -52,6 +53,7 @@ process.on('unhandledRejection', (reason) => {
 });
 
 runMigrations()
+  .then(() => initBlocklist())
   .then(() => {
     httpServer.listen(PORT, () => {
       logger.info({ port: PORT }, '2048 server listening');
