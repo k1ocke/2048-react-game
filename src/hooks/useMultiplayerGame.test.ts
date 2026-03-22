@@ -38,7 +38,7 @@ afterEach(() => {
   jest.clearAllMocks();
 });
 
-// Helper: simulate the WebSocket opening (triggers auth send)
+// Helper: simulate the WebSocket opening
 const openWS = () => {
   act(() => {
     mockWS.onopen?.({});
@@ -52,28 +52,27 @@ const receiveMessage = (data: unknown) => {
   });
 };
 
-// A fake JWT whose payload contains sub: 'user-123'
-// Payload base64: { "sub": "user-123", "username": "alice", "iat": 1, "exp": 9999999999 }
-const fakeToken = `header.${btoa(JSON.stringify({ sub: 'user-123', username: 'alice', iat: 1, exp: 9999999999 }))}.sig`;
+// Helper: simulate the server's 'hello' message (sent after cookie auth)
+const receiveHello = (userId: string) => {
+  receiveMessage({ type: 'hello', userId });
+};
 
 // ── tests ────────────────────────────────────────────────────────────────────
 
 describe('useMultiplayerGame', () => {
-  it('does not connect when token is null', () => {
-    renderHook(() => useMultiplayerGame(null));
+  it('does not connect when not authenticated', () => {
+    renderHook(() => useMultiplayerGame(false));
     expect(globalThis.WebSocket).not.toHaveBeenCalled();
   });
 
-  it('sends auth message on connect', () => {
-    renderHook(() => useMultiplayerGame(fakeToken));
+  it('does not send any auth message on connect (cookie handles auth)', () => {
+    renderHook(() => useMultiplayerGame(true));
     openWS();
-    expect(mockWS.send).toHaveBeenCalledWith(
-      JSON.stringify({ type: 'auth', token: fakeToken })
-    );
+    expect(mockWS.send).not.toHaveBeenCalled();
   });
 
   it('updates room state on room:state message', async () => {
-    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    const { result } = renderHook(() => useMultiplayerGame(true));
     openWS();
 
     const fakeRoom = {
@@ -93,8 +92,9 @@ describe('useMultiplayerGame', () => {
   });
 
   it('updates myScore on player:update for own userId', async () => {
-    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    const { result } = renderHook(() => useMultiplayerGame(true));
     openWS();
+    receiveHello('user-123');
 
     receiveMessage({
       type: 'player:update',
@@ -110,7 +110,7 @@ describe('useMultiplayerGame', () => {
   });
 
   it('adds opponent on player:update for other userId', async () => {
-    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    const { result } = renderHook(() => useMultiplayerGame(true));
     openWS();
 
     receiveMessage({
@@ -129,7 +129,7 @@ describe('useMultiplayerGame', () => {
   });
 
   it('sets rankings on game:end message', async () => {
-    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    const { result } = renderHook(() => useMultiplayerGame(true));
     openWS();
 
     const fakeRankings = [
@@ -145,7 +145,7 @@ describe('useMultiplayerGame', () => {
   });
 
   it('sendMessage sends JSON to WebSocket', () => {
-    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    const { result } = renderHook(() => useMultiplayerGame(true));
     openWS();
 
     act(() => {
@@ -158,14 +158,14 @@ describe('useMultiplayerGame', () => {
   });
 
   it('closes WebSocket on unmount', () => {
-    const { unmount } = renderHook(() => useMultiplayerGame(fakeToken));
+    const { unmount } = renderHook(() => useMultiplayerGame(true));
     openWS();
     unmount();
     expect(mockWS.close).toHaveBeenCalled();
   });
 
   it('updates opponent score on successive player:update messages', async () => {
-    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    const { result } = renderHook(() => useMultiplayerGame(true));
     openWS();
 
     receiveMessage({
@@ -194,7 +194,7 @@ describe('useMultiplayerGame', () => {
   });
 
   it('uses the latest player:update score, not an earlier stale one', async () => {
-    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    const { result } = renderHook(() => useMultiplayerGame(true));
     openWS();
 
     // Two rapid updates — second must win
@@ -207,7 +207,7 @@ describe('useMultiplayerGame', () => {
   });
 
   it('reflects correct terminal status for opponent', async () => {
-    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    const { result } = renderHook(() => useMultiplayerGame(true));
     openWS();
 
     receiveMessage({ type: 'player:update', userId: 'user-456', score: 1024, status: 'playing', boardSnapshot: [] });
@@ -225,8 +225,9 @@ describe('useMultiplayerGame', () => {
   });
 
   it('does not update myScore when player:update is for a different user', async () => {
-    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    const { result } = renderHook(() => useMultiplayerGame(true));
     openWS();
+    receiveHello('user-123');
 
     receiveMessage({ type: 'player:update', userId: 'user-456', score: 9999, status: 'playing', boardSnapshot: [] });
 
@@ -236,7 +237,7 @@ describe('useMultiplayerGame', () => {
   });
 
   it('resolves opponent username from room:state after initial player:update', async () => {
-    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    const { result } = renderHook(() => useMultiplayerGame(true));
     openWS();
 
     // player:update arrives before room:state (userId used as placeholder username)
@@ -279,7 +280,7 @@ describe('useMultiplayerGame', () => {
   });
 
   it('resets scores, opponents and rankings on game:start', async () => {
-    const { result } = renderHook(() => useMultiplayerGame(fakeToken));
+    const { result } = renderHook(() => useMultiplayerGame(true));
     openWS();
 
     // Establish some opponent state and end a game

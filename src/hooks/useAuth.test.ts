@@ -1,19 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAuth } from './useAuth';
 
-// ── localStorage mock ────────────────────────────────────────────────────────
-
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
-  };
-})();
-Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock });
-
 // ── fetch mock helpers ───────────────────────────────────────────────────────
 
 const mockFetch = (status: number, body: unknown) => {
@@ -23,8 +10,6 @@ const mockFetch = (status: number, body: unknown) => {
     json: jest.fn().mockResolvedValue(body),
   } as unknown as Response);
 };
-
-const TOKEN_KEY = '2048-auth-token';
 
 const fakeUserProfile = {
   id: 'user-1',
@@ -40,48 +25,37 @@ const fakeGuestProfile = {
 };
 
 beforeEach(() => {
-  localStorageMock.clear();
   jest.clearAllMocks();
 });
 
 // ── tests ────────────────────────────────────────────────────────────────────
 
 describe('useAuth', () => {
-  it('initialises unauthenticated when no token exists', async () => {
+  it('restores session when valid cookie exists (200 from /me)', async () => {
     mockFetch(200, fakeUserProfile);
-    const { result } = renderHook(() => useAuth());
-
-    // isLoading starts true, but since no token, resolves quickly
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.user).toBeNull();
-    // fetch should NOT have been called (no token)
-    expect(globalThis.fetch).not.toHaveBeenCalled();
-  });
-
-  it('restores session when valid token exists', async () => {
-    localStorageMock.setItem(TOKEN_KEY, 'valid-jwt');
-    mockFetch(200, fakeUserProfile);
-
     const { result } = renderHook(() => useAuth());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.user).toEqual(fakeUserProfile);
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/me'),
+      expect.objectContaining({ credentials: 'include' }),
+    );
   });
 
-  it('clears token and sets user null on 401 during session restore', async () => {
-    localStorageMock.setItem(TOKEN_KEY, 'expired-jwt');
+  it('sets user null when /me returns 401 (no valid cookie)', async () => {
     mockFetch(401, { code: 'UNAUTHORIZED', message: 'Token expired' });
-
     const { result } = renderHook(() => useAuth());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.user).toBeNull();
-    expect(localStorageMock.getItem(TOKEN_KEY)).toBeNull();
   });
 
-  it('login success sets user and stores token', async () => {
-    // First call: /api/v1/me (no token, skipped). Then login call.
-    mockFetch(200, { token: 'new-jwt', user: fakeUserProfile });
+  it('login success sets user (cookie set by server)', async () => {
+    // session restore: 401 (no cookie yet)
+    globalThis.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: false, status: 401, json: jest.fn().mockResolvedValue({}) } as unknown as Response)
+      .mockResolvedValueOnce({ ok: true, status: 200, json: jest.fn().mockResolvedValue({ user: fakeUserProfile }) } as unknown as Response);
 
     const { result } = renderHook(() => useAuth());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -91,19 +65,33 @@ describe('useAuth', () => {
     });
 
     expect(result.current.user).toEqual(fakeUserProfile);
-    expect(localStorageMock.getItem(TOKEN_KEY)).toBe('new-jwt');
   });
 
-  it('login failure throws with API error message', async () => {
+  it('login sends credentials: include', async () => {
+    globalThis.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: false, status: 401, json: jest.fn().mockResolvedValue({}) } as unknown as Response)
+      .mockResolvedValueOnce({ ok: true, status: 200, json: jest.fn().mockResolvedValue({ user: fakeUserProfile }) } as unknown as Response);
+
     const { result } = renderHook(() => useAuth());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-    // Mock a failed login
-    globalThis.fetch = jest.fn().mockResolvedValue({
-      ok: false,
-      status: 401,
-      json: jest.fn().mockResolvedValue({ code: 'INVALID_CREDENTIALS', message: 'Invalid username or password' }),
-    } as unknown as Response);
+    await act(async () => {
+      await result.current.login('testuser', 'pass');
+    });
+
+    const calls = (globalThis.fetch as jest.Mock).mock.calls as [string, RequestInit][];
+    const loginCall = calls.find(([url]) => (url as string).includes('/auth/login'));
+    expect(loginCall).toBeDefined();
+    expect(loginCall![1].credentials).toBe('include');
+  });
+
+  it('login failure throws with API error message', async () => {
+    globalThis.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: false, status: 401, json: jest.fn().mockResolvedValue({}) } as unknown as Response)
+      .mockResolvedValueOnce({ ok: false, status: 401, json: jest.fn().mockResolvedValue({ message: 'Invalid username or password' }) } as unknown as Response);
+
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await expect(
       act(async () => {
@@ -112,12 +100,12 @@ describe('useAuth', () => {
     ).rejects.toThrow('Invalid username or password');
 
     expect(result.current.user).toBeNull();
-    expect(localStorageMock.getItem(TOKEN_KEY)).toBeNull();
   });
 
-  it('logout clears token and user', async () => {
-    localStorageMock.setItem(TOKEN_KEY, 'some-jwt');
-    mockFetch(200, fakeUserProfile);
+  it('logout clears user and calls POST /auth/logout', async () => {
+    globalThis.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: jest.fn().mockResolvedValue(fakeUserProfile) } as unknown as Response)
+      .mockResolvedValue({ ok: true, status: 204, json: jest.fn().mockResolvedValue(null) } as unknown as Response);
 
     const { result } = renderHook(() => useAuth());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -128,59 +116,50 @@ describe('useAuth', () => {
     });
 
     expect(result.current.user).toBeNull();
-    expect(localStorageMock.getItem(TOKEN_KEY)).toBeNull();
+
+    // Logout call fires (fire-and-forget)
+    await waitFor(() => {
+      const calls = (globalThis.fetch as jest.Mock).mock.calls as [string, RequestInit][];
+      const logoutCall = calls.find(([url]) => (url as string).includes('/auth/logout'));
+      expect(logoutCall).toBeDefined();
+      expect(logoutCall![1].method).toBe('POST');
+    });
   });
 
   it('guest login creates guest user', async () => {
+    globalThis.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: false, status: 401, json: jest.fn().mockResolvedValue({}) } as unknown as Response)
+      .mockResolvedValueOnce({ ok: true, status: 201, json: jest.fn().mockResolvedValue({ user: fakeGuestProfile }) } as unknown as Response);
+
     const { result } = renderHook(() => useAuth());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    globalThis.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: jest.fn().mockResolvedValue({ token: 'guest-jwt', user: fakeGuestProfile }),
-    } as unknown as Response);
 
     await act(async () => {
       await result.current.loginAsGuest();
     });
 
     expect(result.current.user).toEqual(fakeGuestProfile);
-    expect(localStorageMock.getItem(TOKEN_KEY)).toBe('guest-jwt');
   });
 
-  it('register success sets user and stores token', async () => {
+  it('register success sets user', async () => {
+    globalThis.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: false, status: 401, json: jest.fn().mockResolvedValue({}) } as unknown as Response)
+      .mockResolvedValueOnce({ ok: true, status: 201, json: jest.fn().mockResolvedValue({ user: fakeUserProfile }) } as unknown as Response);
+
     const { result } = renderHook(() => useAuth());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    globalThis.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 201,
-      json: jest.fn().mockResolvedValue({ token: 'reg-jwt', user: fakeUserProfile }),
-    } as unknown as Response);
 
     await act(async () => {
       await result.current.register('testuser', 'password123');
     });
 
     expect(result.current.user).toEqual(fakeUserProfile);
-    expect(localStorageMock.getItem(TOKEN_KEY)).toBe('reg-jwt');
   });
 
-  it('upgradeGuest success updates user and token', async () => {
-    localStorageMock.setItem(TOKEN_KEY, 'guest-jwt');
-    // session restore returns guest
+  it('upgradeGuest success updates user', async () => {
     globalThis.fetch = jest.fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: jest.fn().mockResolvedValue(fakeGuestProfile),
-      } as unknown as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: jest.fn().mockResolvedValue({ token: 'full-jwt', user: fakeUserProfile }),
-      } as unknown as Response);
+      .mockResolvedValueOnce({ ok: true, status: 200, json: jest.fn().mockResolvedValue(fakeGuestProfile) } as unknown as Response)
+      .mockResolvedValueOnce({ ok: true, status: 200, json: jest.fn().mockResolvedValue({ user: fakeUserProfile }) } as unknown as Response);
 
     const { result } = renderHook(() => useAuth());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -191,6 +170,5 @@ describe('useAuth', () => {
     });
 
     expect(result.current.user).toEqual(fakeUserProfile);
-    expect(localStorageMock.getItem(TOKEN_KEY)).toBe('full-jwt');
   });
 });

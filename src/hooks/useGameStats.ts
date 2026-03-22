@@ -20,7 +20,7 @@ export interface UseGameStatsReturn {
  */
 export const useGameStats = (
   state: GameState,
-  token: string | null,
+  isAuthenticated: boolean,
   refreshUser: () => Promise<void>,
   addEntry: (score: number) => void,
   addHistoryEntry: AddHistoryEntry,
@@ -48,10 +48,11 @@ export const useGameStats = (
       const duration = Math.round((Date.now() - startTime) / 1000);
       addHistoryEntry(score, status as 'won' | 'lost', { moves, bestTile, duration });
 
-      if (token && score > 0) {
+      if (isAuthenticated && score > 0) {
         fetch(`${API_BASE}/api/v1/stats/game-end`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ won: status === 'won', score, moves }),
         })
           .then((res) => {
@@ -68,7 +69,7 @@ export const useGameStats = (
     if (status === 'playing') {
       scoreSaved.current = false;
     }
-  }, [state.status, addEntry, addHistoryEntry, token, refreshUser]);
+  }, [state.status, addEntry, addHistoryEntry, isAuthenticated, refreshUser]);
 
   const isNewRecord = state.score > 0 && state.score > sessionStartBest.current;
   return { isNewRecord };

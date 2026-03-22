@@ -150,37 +150,24 @@ const RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 30000;
 const MAX_RECONNECT_ATTEMPTS = 10;
 
-export const useMultiplayerGame = (token: string | null): UseMultiplayerGameReturn => {
+export const useMultiplayerGame = (isAuthenticated: boolean): UseMultiplayerGameReturn => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmountedRef = useRef(false);
-  // Derive own userId from the JWT token payload (base64 middle segment)
+  // Populated from the server's 'hello' message after cookie authentication
   const myUserIdRef = useRef<string | null>(null);
   // Keep a ref to current state so WebSocket callbacks can read it without
   // creating stale closures.
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const parseUserIdFromToken = (tok: string): string | null => {
-    try {
-      const payload = tok.split('.')[1];
-      if (!payload) return null;
-      const decoded = JSON.parse(atob(payload));
-      return (decoded.sub as string) ?? null;
-    } catch {
-      return null;
-    }
-  };
-
   const connect = useCallback(() => {
-    if (!token || unmountedRef.current) return;
+    if (!isAuthenticated || unmountedRef.current) return;
     // Don't open a second connection if one is already open or connecting
     if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) return;
-
-    myUserIdRef.current = parseUserIdFromToken(token);
 
     const ws = new WebSocket(`${WS_BASE}/ws`);
     wsRef.current = ws;
@@ -192,7 +179,7 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
       }
       dispatch({ type: 'SET_CONNECTED', connected: true, error: null });
       reconnectAttemptsRef.current = 0;
-      ws.send(JSON.stringify({ type: 'auth', token }));
+      // Cookie handles authentication — no auth message needed
     };
 
     ws.onmessage = (event: MessageEvent) => {
@@ -205,6 +192,9 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
       }
 
       switch (msg.type) {
+        case 'hello':
+          myUserIdRef.current = msg.userId;
+          break;
         case 'room:state': {
           const normalized: GameRoom = {
             ...msg.room,
@@ -285,12 +275,12 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
         if (!unmountedRef.current) connect();
       }, delay);
     };
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     unmountedRef.current = false;
 
-    if (!token) return;
+    if (!isAuthenticated) return;
 
     connect();
 
@@ -305,7 +295,7 @@ export const useMultiplayerGame = (token: string | null): UseMultiplayerGameRetu
         wsRef.current = null;
       }
     };
-  }, [token, connect]);
+  }, [isAuthenticated, connect]);
 
   const sendMessage = useCallback((msg: ClientMessage) => {
     const ws = wsRef.current;

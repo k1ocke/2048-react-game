@@ -3,7 +3,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { z } from 'zod';
 import { verifyToken } from '../jwt';
 import { db } from '../db';
-import type { ServerMessage } from '../types';
+import type { ServerMessage, AuthTokenPayload } from '../types';
 import { RoomManager } from './RoomManager';
 import { GameSession } from './GameSession';
 import { logger } from '../logger';
@@ -41,9 +41,20 @@ export const attachWebSocketServer = (
     maxPayload: 4096,
     verifyClient: ({ req }: { req: http.IncomingMessage }) => {
       const origin = req.headers.origin;
-      if (!origin) return true; // same-server / non-browser client
-      const allowed = process.env.CORS_ORIGIN ?? 'http://localhost:3000';
-      return origin === allowed;
+      if (origin) {
+        const allowed = process.env.CORS_ORIGIN ?? 'http://localhost:3000';
+        if (origin !== allowed) return false;
+      }
+      // Try cookie auth — attach wsUser to req for immediate auth in connection handler
+      const match = req.headers.cookie?.match(/(?:^|;\s*)token=([^;]+)/);
+      if (match) {
+        try {
+          (req as { wsUser?: AuthTokenPayload }).wsUser = verifyToken(decodeURIComponent(match[1]));
+        } catch {
+          // Invalid/expired token — fall through to first-message auth
+        }
+      }
+      return true;
     },
   });
 
@@ -108,7 +119,7 @@ export const attachWebSocketServer = (
     }
   }, 60 * 1000).unref();
 
-  wss.on('connection', (ws: AuthenticatedSocket) => {
+  wss.on('connection', (ws: AuthenticatedSocket, req: http.IncomingMessage) => {
     let authenticated = false;
 
     // ── Per-connection rate limiting ───────────────────────────────────────
@@ -117,12 +128,27 @@ export const attachWebSocketServer = (
     const MSG_RATE_LIMIT = 50;
     const RATE_WINDOW_MS = 1000;
 
-    // ── Step 1: authenticate within 5 seconds ─────────────────────────────
+    // ── Cookie-based pre-authentication ───────────────────────────────────
+    const wsUser = (req as { wsUser?: AuthTokenPayload }).wsUser;
+    if (wsUser) {
+      ws.userId = wsUser.sub;
+      ws.username = wsUser.username;
+      authenticated = true;
+      const existingWs = connections.get(wsUser.sub);
+      if (existingWs && existingWs !== ws && existingWs.readyState === WebSocket.OPEN) {
+        existingWs.close(4000, 'Replaced by new connection');
+      }
+      connections.set(wsUser.sub, ws);
+      send(ws, { type: 'hello', userId: wsUser.sub });
+    }
+
+    // ── Auth timeout (cleared immediately when cookie-authenticated) ───────
     const authTimer = setTimeout(() => {
       if (!authenticated) {
         ws.close(4001, 'Authentication timeout');
       }
     }, AUTH_TIMEOUT_MS);
+    if (authenticated) clearTimeout(authTimer);
 
     ws.on('message', (raw: Buffer | string) => {
       const now = Date.now();

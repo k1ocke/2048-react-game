@@ -119,6 +119,7 @@ export type ClientMessage =
 
 // Server → Client
 export type ServerMessage =
+  | { type: 'hello'; userId: string }
   | { type: 'room:state'; room: GameRoom }
   | { type: 'room:error'; code: string; message: string }
   | { type: 'player:update'; userId: string; score: number; status: 'playing' | 'won' | 'lost'; boardSnapshot: number[][] }

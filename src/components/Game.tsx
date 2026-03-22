@@ -24,7 +24,8 @@ import styles from './Game.module.css';
 const Game = () => {
   const { entries, addEntry } = useLeaderboard();
   const { history, addHistoryEntry } = useScoreHistory();
-  const { user, isLoading, token, login, register, loginAsGuest, logout, upgradeGuest, updateUsername, refreshUser } = useAuth();
+  const { user, isLoading, login, register, loginAsGuest, logout, upgradeGuest, updateUsername, refreshUser } = useAuth();
+  const isAuthenticated = user !== null;
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -33,7 +34,7 @@ const Game = () => {
   const boardRef = useRef<HTMLDivElement>(null);
 
   const { connected, room, sendMessage, leaveRoom, opponents, rankings, error: multiplayerError, gameStartCount } =
-    useMultiplayerGame(token);
+    useMultiplayerGame(isAuthenticated);
 
   // Forward moves to the server when in an active multiplayer game
   const onMove = useCallback((direction: Direction) => {
@@ -48,7 +49,7 @@ const Game = () => {
   const { state, handleMove, restart } = useGame(onMove, isModalOpen);
   const currentUserId = user?.id ?? '';
 
-  const { isNewRecord } = useGameStats(state, token, refreshUser, addEntry, addHistoryEntry);
+  const { isNewRecord } = useGameStats(state, isAuthenticated, refreshUser, addEntry, addHistoryEntry);
   useMultiplayerScoreSync(state, sendMessage, room);
   useTouchControls(handleMove, boardRef);
 
@@ -129,7 +130,7 @@ const Game = () => {
         isOpen={leaderboardOpen}
         entries={entries}
         onClose={() => setLeaderboardOpen(false)}
-        token={token}
+        isAuthenticated={isAuthenticated}
         currentUserId={user?.id}
       />
       <LobbyModal

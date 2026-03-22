@@ -116,7 +116,7 @@ describe('LeaderboardPopup', () => {
         isOpen={true}
         entries={[]}
         onClose={jest.fn()}
-        token="test-token"
+        isAuthenticated={true}
       />
     );
     // Skeleton rows are aria-hidden; we check the container has the expected structure
@@ -132,7 +132,7 @@ describe('LeaderboardPopup', () => {
         isOpen={true}
         entries={[]}
         onClose={jest.fn()}
-        token="test-token"
+        isAuthenticated={true}
       />
     );
     await waitFor(() => expect(screen.getByText('Alice')).toBeInTheDocument());
@@ -150,7 +150,7 @@ describe('LeaderboardPopup', () => {
         isOpen={true}
         entries={[]}
         onClose={jest.fn()}
-        token="test-token"
+        isAuthenticated={true}
         currentUserId="u2"
       />
     );
@@ -165,7 +165,7 @@ describe('LeaderboardPopup', () => {
         isOpen={true}
         entries={[]}
         onClose={jest.fn()}
-        token="test-token"
+        isAuthenticated={true}
       />
     );
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
@@ -183,7 +183,7 @@ describe('LeaderboardPopup', () => {
         isOpen={true}
         entries={[]}
         onClose={jest.fn()}
-        token="test-token"
+        isAuthenticated={true}
       />
     );
     await waitFor(() => expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument());

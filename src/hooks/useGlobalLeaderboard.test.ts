@@ -40,7 +40,7 @@ beforeEach(() => {
 describe('useGlobalLeaderboard', () => {
   it('initialises with empty entries and isLoading true', () => {
     (globalThis.fetch as jest.Mock).mockReturnValue(new Promise(() => {})); // never resolves
-    const { result } = renderHook(() => useGlobalLeaderboard(null));
+    const { result } = renderHook(() => useGlobalLeaderboard(false));
     expect(result.current.entries).toEqual([]);
     expect(result.current.isLoading).toBe(true);
     expect(result.current.error).toBeNull();
@@ -49,7 +49,7 @@ describe('useGlobalLeaderboard', () => {
 
   it('sets entries on successful fetch', async () => {
     (globalThis.fetch as jest.Mock).mockReturnValue(makeOkResponse(mockEntries));
-    const { result } = renderHook(() => useGlobalLeaderboard(null));
+    const { result } = renderHook(() => useGlobalLeaderboard(false));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.entries).toEqual(mockEntries);
     expect(result.current.error).toBeNull();
@@ -57,7 +57,7 @@ describe('useGlobalLeaderboard', () => {
 
   it('sets error on failed fetch', async () => {
     (globalThis.fetch as jest.Mock).mockReturnValue(makeErrorResponse(500));
-    const { result } = renderHook(() => useGlobalLeaderboard(null));
+    const { result } = renderHook(() => useGlobalLeaderboard(false));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.entries).toEqual([]);
     expect(result.current.error).not.toBeNull();
@@ -65,33 +65,33 @@ describe('useGlobalLeaderboard', () => {
 
   it('sets error on network failure', async () => {
     (globalThis.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
-    const { result } = renderHook(() => useGlobalLeaderboard(null));
+    const { result } = renderHook(() => useGlobalLeaderboard(false));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.entries).toEqual([]);
     expect(result.current.error).toBe('Network error');
   });
 
-  it('fetches myRank when token is provided', async () => {
+  it('fetches myRank when authenticated', async () => {
     (globalThis.fetch as jest.Mock)
       .mockReturnValueOnce(makeOkResponse(mockEntries))   // global leaderboard
       .mockReturnValueOnce(makeOkResponse(mockMyRank));   // /me
 
-    const { result } = renderHook(() => useGlobalLeaderboard('test-token'));
+    const { result } = renderHook(() => useGlobalLeaderboard(true));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.entries).toEqual(mockEntries);
     expect(result.current.myRank).toEqual(mockMyRank);
 
-    // Verify Authorization header was sent for the /me request
+    // Verify credentials: 'include' was sent for the /me request (not Authorization header)
     const calls = (globalThis.fetch as jest.Mock).mock.calls as [string, RequestInit][];
     const meCall = calls.find(([url]) => url.includes('/leaderboard/me'));
     expect(meCall).toBeDefined();
-    expect((meCall![1].headers as Record<string, string>)['Authorization']).toBe('Bearer test-token');
+    expect(meCall![1].credentials).toBe('include');
   });
 
-  it('does not fetch myRank when token is null', async () => {
+  it('does not fetch myRank when not authenticated', async () => {
     (globalThis.fetch as jest.Mock).mockReturnValue(makeOkResponse(mockEntries));
-    const { result } = renderHook(() => useGlobalLeaderboard(null));
+    const { result } = renderHook(() => useGlobalLeaderboard(false));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     const calls = (globalThis.fetch as jest.Mock).mock.calls as [string][];
@@ -102,14 +102,14 @@ describe('useGlobalLeaderboard', () => {
 
   it('sets error on 401 response', async () => {
     (globalThis.fetch as jest.Mock).mockReturnValue(makeErrorResponse(401));
-    const { result } = renderHook(() => useGlobalLeaderboard(null));
+    const { result } = renderHook(() => useGlobalLeaderboard(false));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.error).toMatch(/unauthorised/i);
   });
 
   it('refresh() re-fetches data', async () => {
     (globalThis.fetch as jest.Mock).mockReturnValue(makeOkResponse(mockEntries));
-    const { result } = renderHook(() => useGlobalLeaderboard(null));
+    const { result } = renderHook(() => useGlobalLeaderboard(false));
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     const callCount = (globalThis.fetch as jest.Mock).mock.calls.length;

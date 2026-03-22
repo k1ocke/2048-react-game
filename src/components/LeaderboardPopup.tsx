@@ -12,8 +12,8 @@ interface LeaderboardPopupProps {
   entries: LeaderboardEntry[];
   /** Called when the user requests the popup to close */
   onClose: () => void;
-  /** If provided, shows global leaderboard instead of local entries */
-  token?: string | null;
+  /** If true, shows global leaderboard instead of local entries */
+  isAuthenticated?: boolean;
   /** User ID to highlight in the global leaderboard */
   currentUserId?: string;
 }
@@ -51,13 +51,11 @@ const GlobalEntry = ({ row, isHighlighted }: GlobalEntryProps) => (
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const GlobalLeaderboardBody = ({
-  token,
   currentUserId,
 }: {
-  token: string;
   currentUserId?: string;
 }) => {
-  const { entries, myRank, isLoading, error, refresh } = useGlobalLeaderboard(token);
+  const { entries, myRank, isLoading, error, refresh } = useGlobalLeaderboard(true);
 
   if (isLoading) {
     return (
@@ -126,7 +124,7 @@ const LeaderboardPopup = memo(({
   isOpen,
   entries,
   onClose,
-  token,
+  isAuthenticated,
   currentUserId,
 }: LeaderboardPopupProps) => {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -145,7 +143,7 @@ const LeaderboardPopup = memo(({
 
   if (!isOpen) return null;
 
-  const showGlobal = token != null && token !== '';
+  const showGlobal = isAuthenticated === true;
 
   return (
     <div
@@ -170,7 +168,7 @@ const LeaderboardPopup = memo(({
         </div>
 
         {showGlobal ? (
-          <GlobalLeaderboardBody token={token} currentUserId={currentUserId} />
+          <GlobalLeaderboardBody currentUserId={currentUserId} />
         ) : entries.length === 0 ? (
           <p className={styles.empty}>No scores yet. Play a game!</p>
         ) : (

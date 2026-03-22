@@ -12,7 +12,10 @@ export const createApp = () => {
   const app = express();
 
   app.use(helmet());
-  app.use(cors({ origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000' }));
+  app.use(cors({
+    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+    credentials: true,
+  }));
   app.use(express.json({ limit: '10kb' }));
 
   // Rate limit auth routes: 10 attempts per 15 minutes per IP (disabled in test)

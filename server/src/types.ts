@@ -26,6 +26,7 @@ export interface AuthTokenPayload {
   sub: string;       // user UUID
   username: string;
   isGuest?: true;
+  jti?: string;      // JWT ID — used for revocation
   iat: number;
   exp: number;
 }
@@ -103,6 +104,7 @@ export type ClientMessage =
   | { type: 'game:restart' };
 
 export type ServerMessage =
+  | { type: 'hello'; userId: string }
   | { type: 'room:state'; room: GameRoom }
   | { type: 'room:error'; code: string; message: string }
   | { type: 'player:update'; userId: string; score: number; status: 'playing' | 'won' | 'lost'; boardSnapshot: number[][] }

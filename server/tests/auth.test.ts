@@ -16,7 +16,7 @@ beforeEach(() => {
 // ─── POST /auth/register ──────────────────────────────────────────────────────
 
 describe('POST /auth/register', () => {
-  it('creates a new account and returns 201 with token + profile', async () => {
+  it('creates a new account and returns 201 with Set-Cookie + profile', async () => {
     db.isUsernameTaken.mockResolvedValue(false);
     db.createUser.mockResolvedValue(mockFullUser);
 
@@ -25,7 +25,10 @@ describe('POST /auth/register', () => {
       .send({ username: 'testuser', password: 'Password123' });
 
     expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty('token');
+    expect(res.body).not.toHaveProperty('token');
+    expect(res.headers['set-cookie']).toBeDefined();
+    expect(res.headers['set-cookie'][0]).toMatch(/^token=/);
+    expect(res.headers['set-cookie'][0]).toMatch(/HttpOnly/i);
     expect(res.body.user.username).toBe('testuser');
     expect(res.body.user).not.toHaveProperty('password_hash');
   });
@@ -71,7 +74,7 @@ describe('POST /auth/register', () => {
 // ─── POST /auth/login ─────────────────────────────────────────────────────────
 
 describe('POST /auth/login', () => {
-  it('returns 200 with token when credentials are correct', async () => {
+  it('returns 200 with Set-Cookie when credentials are correct', async () => {
     const hash = await bcrypt.hash('Password123', 12);
     db.findByUsername.mockResolvedValue({ ...mockFullUser, password_hash: hash });
 
@@ -80,7 +83,10 @@ describe('POST /auth/login', () => {
       .send({ username: 'testuser', password: 'Password123' });
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('token');
+    expect(res.body).not.toHaveProperty('token');
+    expect(res.headers['set-cookie']).toBeDefined();
+    expect(res.headers['set-cookie'][0]).toMatch(/^token=/);
+    expect(res.headers['set-cookie'][0]).toMatch(/HttpOnly/i);
     expect(res.body.user.username).toBe('testuser');
   });
 
@@ -122,14 +128,17 @@ describe('POST /auth/login', () => {
 // ─── POST /auth/guest ─────────────────────────────────────────────────────────
 
 describe('POST /auth/guest', () => {
-  it('creates a guest session and returns 201 with guest token', async () => {
+  it('creates a guest session and returns 201 with Set-Cookie', async () => {
     db.isUsernameTaken.mockResolvedValue(false);
     db.createUser.mockResolvedValue(mockGuestUser);
 
     const res = await request(app).post('/api/v1/auth/guest');
 
     expect(res.status).toBe(201);
-    expect(res.body).toHaveProperty('token');
+    expect(res.body).not.toHaveProperty('token');
+    expect(res.headers['set-cookie']).toBeDefined();
+    expect(res.headers['set-cookie'][0]).toMatch(/^token=/);
+    expect(res.headers['set-cookie'][0]).toMatch(/HttpOnly/i);
     expect(res.body.user.isGuest).toBe(true);
     expect(res.body.user).not.toHaveProperty('password_hash');
   });
@@ -153,7 +162,9 @@ describe('POST /auth/upgrade', () => {
       .send({ username: 'newuser', password: 'Password123' });
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty('token');
+    expect(res.body).not.toHaveProperty('token');
+    expect(res.headers['set-cookie']).toBeDefined();
+    expect(res.headers['set-cookie'][0]).toMatch(/^token=/);
     expect(res.body.user.username).toBe('newuser');
   });
 
@@ -187,5 +198,30 @@ describe('POST /auth/upgrade', () => {
       .send({ username: 'taken', password: 'Password123' });
 
     expect(res.status).toBe(409);
+  });
+});
+
+// ─── POST /auth/logout ────────────────────────────────────────────────────────
+
+describe('POST /auth/logout', () => {
+  const getFullToken = () => {
+    const { signToken } = jest.requireActual<typeof import('../src/jwt')>('../src/jwt');
+    return signToken({ sub: mockFullUser.id, username: mockFullUser.username });
+  };
+
+  it('returns 204 and clears the cookie', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/logout')
+      .set('Authorization', `Bearer ${getFullToken()}`);
+
+    expect(res.status).toBe(204);
+    // Cookie should be cleared (expires=Thu, 01 Jan 1970 or Max-Age=0)
+    expect(res.headers['set-cookie']).toBeDefined();
+    expect(res.headers['set-cookie'][0]).toMatch(/token=;|token=(?:;|$)/);
+  });
+
+  it('returns 401 when called without a token', async () => {
+    const res = await request(app).post('/api/v1/auth/logout');
+    expect(res.status).toBe(401);
   });
 });

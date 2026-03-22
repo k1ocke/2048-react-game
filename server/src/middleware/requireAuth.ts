@@ -1,13 +1,26 @@
 import type { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../jwt';
 
+/** Parse the `token` cookie value from a raw Cookie header string. */
+const parseCookieToken = (cookieHeader: string | undefined): string | undefined => {
+  if (!cookieHeader) return undefined;
+  const match = cookieHeader.match(/(?:^|;\s*)token=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : undefined;
+};
+
 export const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) {
-    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Missing or invalid Authorization header' });
+  // Primary: httpOnly cookie (browser clients)
+  const cookieToken = parseCookieToken(req.headers.cookie);
+  // Fallback: Authorization Bearer header (programmatic / test clients)
+  const bearerToken = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7)
+    : undefined;
+
+  const token = cookieToken ?? bearerToken;
+  if (!token) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Authentication required' });
     return;
   }
-  const token = header.slice(7);
   try {
     req.user = verifyToken(token);
     next();

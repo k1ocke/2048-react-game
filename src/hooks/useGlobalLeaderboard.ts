@@ -10,7 +10,7 @@ export interface UseGlobalLeaderboardReturn {
   refresh: () => void;
 }
 
-export const useGlobalLeaderboard = (token: string | null): UseGlobalLeaderboardReturn => {
+export const useGlobalLeaderboard = (isAuthenticated: boolean): UseGlobalLeaderboardReturn => {
   const [entries, setEntries] = useState<LeaderboardRow[]>([]);
   const [myRank, setMyRank] = useState<{ rank: number; surrounding: LeaderboardRow[] } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -46,10 +46,10 @@ export const useGlobalLeaderboard = (token: string | null): UseGlobalLeaderboard
           setError(null);
         }
 
-        if (token) {
+        if (isAuthenticated) {
           try {
             const meRes = await fetch(`${API_BASE}/api/v1/leaderboard/me`, {
-              headers: { Authorization: `Bearer ${token}` },
+              credentials: 'include',
               cache: 'no-store',
             });
             if (meRes.ok) {
@@ -89,7 +89,7 @@ export const useGlobalLeaderboard = (token: string | null): UseGlobalLeaderboard
     return () => {
       cancelled = true;
     };
-  }, [token, tick]);
+  }, [isAuthenticated, tick]);
 
   return { entries, myRank, isLoading, error, refresh };
 };

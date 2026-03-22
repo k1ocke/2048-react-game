@@ -2,11 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import type { CurrentUser } from '../types/multiplayer';
 import { API_BASE } from '../utils/env';
 
-const TOKEN_KEY = '2048-auth-token';
-
 export interface UseAuthReturn {
   user: CurrentUser | null;
-  token: string | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string) => Promise<void>;
@@ -17,18 +14,12 @@ export interface UseAuthReturn {
   refreshUser: () => Promise<void>;
 }
 
-const getToken = (): string | null => localStorage.getItem(TOKEN_KEY);
-const setToken = (token: string): void => localStorage.setItem(TOKEN_KEY, token);
-const clearToken = (): void => localStorage.removeItem(TOKEN_KEY);
-
 const apiFetch = async (path: string, options?: RequestInit): Promise<Response> => {
-  const token = getToken();
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options?.headers ?? {}),
   };
-  return fetch(`${API_BASE}${path}`, { ...options, headers });
+  return fetch(`${API_BASE}${path}`, { ...options, headers, credentials: 'include' });
 };
 
 const handleApiError = async (res: Response): Promise<never> => {
@@ -43,30 +34,15 @@ const handleApiError = async (res: Response): Promise<never> => {
 
 export const useAuth = (): UseAuthReturn => {
   const [user, setUser] = useState<CurrentUser | null>(null);
-  const [token, setTokenState] = useState<string | null>(getToken);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // On mount, restore session from stored token
+  // On mount, restore session from httpOnly cookie (server validates it)
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
-
     let cancelled = false;
     apiFetch('/api/v1/me')
       .then(async (res) => {
         if (cancelled) return;
-        if (res.status === 401) {
-          clearToken();
-          setTokenState(null);
-          setUser(null);
-          return;
-        }
         if (!res.ok) {
-          clearToken();
-          setTokenState(null);
           setUser(null);
           return;
         }
@@ -74,8 +50,7 @@ export const useAuth = (): UseAuthReturn => {
         setUser(data);
       })
       .catch((err: unknown) => {
-        // Network errors (fetch throws) — leave the token intact so the user
-        // stays logged in. Only HTTP 401s (handled above) should clear the token.
+        // Network errors — leave user as null; cookie still valid for next request
         if (!cancelled) {
           console.error('Session restore failed (network error):', err);
         }
@@ -89,9 +64,6 @@ export const useAuth = (): UseAuthReturn => {
     };
   }, []);
 
-  // React 19 (used here) auto-batches all state updates — including those inside async/await and
-  // setTimeout — so the multiple setTokenState/setUser calls below are already batched into a
-  // single re-render with no extra work needed (no unstable_batchedUpdates required).
   const login = useCallback(async (username: string, password: string): Promise<void> => {
     const res = await apiFetch('/api/v1/auth/login', {
       method: 'POST',
@@ -100,9 +72,7 @@ export const useAuth = (): UseAuthReturn => {
     if (!res.ok) {
       await handleApiError(res);
     }
-    const data = (await res.json()) as { token: string; user: CurrentUser };
-    setToken(data.token);
-    setTokenState(data.token);
+    const data = (await res.json()) as { user: CurrentUser };
     setUser(data.user);
   }, []);
 
@@ -114,9 +84,7 @@ export const useAuth = (): UseAuthReturn => {
     if (!res.ok) {
       await handleApiError(res);
     }
-    const data = (await res.json()) as { token: string; user: CurrentUser };
-    setToken(data.token);
-    setTokenState(data.token);
+    const data = (await res.json()) as { user: CurrentUser };
     setUser(data.user);
   }, []);
 
@@ -127,15 +95,13 @@ export const useAuth = (): UseAuthReturn => {
     if (!res.ok) {
       await handleApiError(res);
     }
-    const data = (await res.json()) as { token: string; user: CurrentUser };
-    setToken(data.token);
-    setTokenState(data.token);
+    const data = (await res.json()) as { user: CurrentUser };
     setUser(data.user);
   }, []);
 
   const logout = useCallback((): void => {
-    clearToken();
-    setTokenState(null);
+    // Fire-and-forget: revoke the token server-side (clears httpOnly cookie)
+    apiFetch('/api/v1/auth/logout', { method: 'POST' }).catch(() => { /* silent */ });
     setUser(null);
   }, []);
 
@@ -147,15 +113,11 @@ export const useAuth = (): UseAuthReturn => {
     if (!res.ok) {
       await handleApiError(res);
     }
-    const data = (await res.json()) as { token: string; user: CurrentUser };
-    setToken(data.token);
-    setTokenState(data.token);
+    const data = (await res.json()) as { user: CurrentUser };
     setUser(data.user);
   }, []);
 
   const refreshUser = useCallback(async (): Promise<void> => {
-    const token = getToken();
-    if (!token) return;
     const res = await apiFetch('/api/v1/me', { cache: 'no-store' });
     if (res.ok) {
       const data = (await res.json()) as CurrentUser;
@@ -175,5 +137,5 @@ export const useAuth = (): UseAuthReturn => {
     setUser(data);
   }, []);
 
-  return { user, token, isLoading, login, register, loginAsGuest, logout, upgradeGuest, updateUsername, refreshUser };
+  return { user, isLoading, login, register, loginAsGuest, logout, upgradeGuest, updateUsername, refreshUser };
 };
