@@ -41,7 +41,15 @@ describe('useGameStats', () => {
     addEntry = jest.fn();
     addHistoryEntry = jest.fn();
     refreshUser = jest.fn().mockResolvedValue(undefined);
-    globalThis.fetch = jest.fn().mockResolvedValue({ ok: true }) as typeof fetch;
+    globalThis.fetch = jest.fn().mockImplementation((url: string | URL | Request) => {
+      if (String(url).includes('game-start')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ gameToken: 'test-game-token' }),
+        });
+      }
+      return Promise.resolve({ ok: true });
+    }) as typeof fetch;
   });
 
   afterEach(() => {
@@ -140,13 +148,24 @@ describe('useGameStats', () => {
   });
 
   describe('server stats submission', () => {
-    it('calls fetch when authenticated and score > 0', async () => {
+    it('calls game-start then game-end when authenticated and score > 0', async () => {
       const { rerender } = renderHook(
         ({ state }: { state: GameState }) =>
           useGameStats(state, true, refreshUser, addEntry, addHistoryEntry),
         { initialProps: { state: playingState(0) } },
       );
 
+      // Wait for game-start to be called and its promise chain to resolve (sets gameTokenRef)
+      await waitFor(() => {
+        expect(globalThis.fetch).toHaveBeenCalledWith(
+          expect.stringContaining('/api/v1/stats/game-start'),
+          expect.objectContaining({ method: 'POST' }),
+        );
+      });
+      // Flush remaining microtasks from the game-start .then() chain
+      await act(async () => { await new Promise(r => setTimeout(r, 0)); });
+
+      // Now transition to lost — gameToken is set, so game-end will be submitted
       act(() => { rerender({ state: lostState(400) }); });
 
       await waitFor(() => {
@@ -171,7 +190,7 @@ describe('useGameStats', () => {
       expect(globalThis.fetch).not.toHaveBeenCalled();
     });
 
-    it('does not call fetch when score is 0', async () => {
+    it('does not submit stats to server when score is 0', async () => {
       const { rerender } = renderHook(
         ({ state }: { state: GameState }) =>
           useGameStats(state, true, refreshUser, addEntry, addHistoryEntry),
@@ -181,7 +200,11 @@ describe('useGameStats', () => {
       act(() => { rerender({ state: lostState(0) }); });
 
       await waitFor(() => expect(addEntry).toHaveBeenCalled());
-      expect(globalThis.fetch).not.toHaveBeenCalled();
+      // game-end must not be called (score is 0)
+      expect(globalThis.fetch).not.toHaveBeenCalledWith(
+        expect.stringContaining('game-end'),
+        expect.any(Object),
+      );
     });
   });
 });

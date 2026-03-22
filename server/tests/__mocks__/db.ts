@@ -1,4 +1,4 @@
-import type { UserRow, LeaderboardRow } from '../../src/types';
+import type { UserRow, UserProfileRow, LeaderboardRow } from '../../src/types';
 
 // Shared mock user rows used across tests
 export const mockFullUser: UserRow = {
@@ -8,6 +8,8 @@ export const mockFullUser: UserRow = {
   avatar_url: null,
   is_guest: false,
   created_at: new Date('2026-01-01T00:00:00Z'),
+  failed_login_attempts: 0,
+  locked_until: null,
   total_games: 5,
   wins: 2,
   best_score: 4096,
@@ -22,6 +24,8 @@ export const mockGuestUser: UserRow = {
   avatar_url: null,
   is_guest: true,
   created_at: new Date('2026-01-01T00:00:00Z'),
+  failed_login_attempts: 0,
+  locked_until: null,
   total_games: 0,
   wins: 0,
   best_score: 0,
@@ -32,15 +36,17 @@ export const mockGuestUser: UserRow = {
 // All db methods are jest.fn() — configure return values in each test
 export const db = {
   findByUsername: jest.fn<Promise<UserRow | null>, [string]>(),
-  findById: jest.fn<Promise<UserRow | null>, [string]>(),
+  findById: jest.fn<Promise<UserProfileRow | null>, [string]>(),
   isUsernameTaken: jest.fn<Promise<boolean>, [string]>(),
   isUsernameTakenByOther: jest.fn<Promise<boolean>, [string, string]>(),
-  createUser: jest.fn<Promise<UserRow>, [string, string, boolean?]>(),
-  updateUser: jest.fn<Promise<UserRow | null>, [string, object]>(),
-  upgradeGuest: jest.fn<Promise<UserRow | null>, [string, string, string]>(),
+  createUser: jest.fn<Promise<UserProfileRow>, [string, string, boolean?]>(),
+  updateUser: jest.fn<Promise<UserProfileRow | null>, [string, object]>(),
+  upgradeGuest: jest.fn<Promise<UserProfileRow | null>, [string, string, string]>(),
   upsertStats: jest.fn<Promise<void>, [string, object]>(),
   getTopScores: jest.fn<Promise<LeaderboardRow[]>, [number]>(),
   getUserRank: jest.fn<Promise<{ rank: number; surrounding: LeaderboardRow[] } | null>, [string]>(),
+  recordLoginSuccess: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined),
+  recordLoginFailure: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined),
 };
 
 export const pool = { query: jest.fn().mockResolvedValue({ rows: [] }), end: jest.fn() };

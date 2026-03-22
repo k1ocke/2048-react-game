@@ -22,3 +22,26 @@ export const verifyToken = (token: string): AuthTokenPayload => {
   }
   return payload;
 };
+
+// ── Game session tokens ────────────────────────────────────────────────────────
+// Short-lived tokens that bind a single-player game to an authenticated user.
+// Not checked against the blocklist — they expire in 4h and are single-use by
+// convention (the game-end handler consumes them once per game).
+
+export interface GameTokenPayload {
+  sub: string;        // userId
+  type: 'game-session';
+  iat: number;
+}
+
+export const signGameToken = (userId: string): string =>
+  jwt.sign({ sub: userId, type: 'game-session' }, secret(), {
+    algorithm: 'HS256',
+    expiresIn: '4h',
+  } as jwt.SignOptions);
+
+export const verifyGameToken = (token: string): GameTokenPayload => {
+  const payload = jwt.verify(token, secret(), { algorithms: ['HS256'] }) as GameTokenPayload;
+  if (payload.type !== 'game-session') throw new Error('Not a game session token');
+  return payload;
+};

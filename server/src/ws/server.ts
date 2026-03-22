@@ -36,6 +36,10 @@ export const attachWebSocketServer = (
   httpServer: http.Server,
   roomManager: RoomManager,
 ): WebSocketServer => {
+  // Track concurrent WebSocket connections per IP to prevent connection exhaustion
+  const ipConnectionCount = new Map<string, number>();
+  const MAX_WS_CONNECTIONS_PER_IP = 20;
+
   const wss = new WebSocketServer({
     server: httpServer,
     maxPayload: 4096,
@@ -45,11 +49,21 @@ export const attachWebSocketServer = (
         const allowed = process.env.CORS_ORIGIN ?? 'http://localhost:3000';
         if (origin !== allowed) return false;
       }
+
+      // Per-IP connection limit
+      const ip = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0].trim()
+        ?? req.socket.remoteAddress
+        ?? 'unknown';
+      const count = ipConnectionCount.get(ip) ?? 0;
+      if (count >= MAX_WS_CONNECTIONS_PER_IP) return false;
+      ipConnectionCount.set(ip, count + 1);
+      (req as { wsUser?: AuthTokenPayload; clientIp?: string }).clientIp = ip;
+
       // Try cookie auth — attach wsUser to req for immediate auth in connection handler
       const match = req.headers.cookie?.match(/(?:^|;\s*)token=([^;]+)/);
       if (match) {
         try {
-          (req as { wsUser?: AuthTokenPayload }).wsUser = verifyToken(decodeURIComponent(match[1]));
+          (req as { wsUser?: AuthTokenPayload; clientIp?: string }).wsUser = verifyToken(decodeURIComponent(match[1]));
         } catch {
           // Invalid/expired token — fall through to first-message auth
         }
@@ -383,6 +397,13 @@ export const attachWebSocketServer = (
 
     ws.on('close', () => {
       clearTimeout(authTimer);
+      // Decrement per-IP connection counter
+      const ip = (req as { clientIp?: string }).clientIp;
+      if (ip) {
+        const count = ipConnectionCount.get(ip) ?? 0;
+        if (count <= 1) ipConnectionCount.delete(ip);
+        else ipConnectionCount.set(ip, count - 1);
+      }
       if (ws.userId) {
         connections.delete(ws.userId);
         if (ws.roomId) {

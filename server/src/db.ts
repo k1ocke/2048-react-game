@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import type { UserRow, LeaderboardRow } from './types';
+import type { UserRow, UserProfileRow, LeaderboardRow } from './types';
 import { logger } from './logger';
 
 export const pool = new Pool({
@@ -7,6 +7,7 @@ export const pool = new Pool({
   max: 10,
   connectionTimeoutMillis: 3000,
   idleTimeoutMillis: 30000,
+  ...(process.env.NODE_ENV === 'production' ? { ssl: { rejectUnauthorized: true } } : {}),
 });
 
 pool.on('connect', (client) => {
@@ -17,9 +18,20 @@ pool.on('error', (err) => {
   logger.error({ err }, 'PostgreSQL pool error');
 });
 
-const USER_SELECT = `
+// Full auth select — includes password_hash and lockout columns. Only used by findByUsername (login).
+const USER_SELECT_AUTH = `
   SELECT
     u.id, u.username, u.password_hash, u.avatar_url, u.is_guest, u.created_at,
+    u.failed_login_attempts, u.locked_until,
+    s.total_games, s.wins, s.best_score, s.total_score, s.total_moves
+  FROM users u
+  LEFT JOIN user_stats s ON s.user_id = u.id
+`;
+
+// Profile select — auth-only fields excluded. Used by all other queries.
+const USER_SELECT_PROFILE = `
+  SELECT
+    u.id, u.username, u.avatar_url, u.is_guest, u.created_at,
     s.total_games, s.wins, s.best_score, s.total_score, s.total_moves
   FROM users u
   LEFT JOIN user_stats s ON s.user_id = u.id
@@ -28,15 +40,15 @@ const USER_SELECT = `
 export const db = {
   async findByUsername(username: string): Promise<UserRow | null> {
     const { rows } = await pool.query<UserRow>(
-      `${USER_SELECT} WHERE u.username = $1`,
+      `${USER_SELECT_AUTH} WHERE u.username = $1`,
       [username],
     );
     return rows[0] ?? null;
   },
 
-  async findById(id: string): Promise<UserRow | null> {
-    const { rows } = await pool.query<UserRow>(
-      `${USER_SELECT} WHERE u.id = $1`,
+  async findById(id: string): Promise<UserProfileRow | null> {
+    const { rows } = await pool.query<UserProfileRow>(
+      `${USER_SELECT_PROFILE} WHERE u.id = $1`,
       [id],
     );
     return rows[0] ?? null;
@@ -62,14 +74,14 @@ export const db = {
     username: string,
     passwordHash: string,
     isGuest = false,
-  ): Promise<UserRow> {
+  ): Promise<UserProfileRow> {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      const { rows } = await client.query<UserRow>(
+      const { rows } = await client.query<UserProfileRow>(
         `INSERT INTO users (username, password_hash, is_guest)
          VALUES ($1, $2, $3)
-         RETURNING id, username, password_hash, avatar_url, is_guest, created_at,
+         RETURNING id, username, avatar_url, is_guest, created_at,
                    NULL AS total_games, NULL AS wins, NULL AS best_score,
                    NULL AS total_score, NULL AS total_moves`,
         [username, passwordHash, isGuest],
@@ -91,7 +103,7 @@ export const db = {
   async updateUser(
     id: string,
     fields: { username?: string; avatarUrl?: string | null },
-  ): Promise<UserRow | null> {
+  ): Promise<UserProfileRow | null> {
     const updates: string[] = [];
     const values: (string | null)[] = [];
     let i = 1;
@@ -107,13 +119,13 @@ export const db = {
     if (updates.length === 0) return this.findById(id);
 
     values.push(id);
-    const { rows } = await pool.query<UserRow>(
+    const { rows } = await pool.query<UserProfileRow>(
       `WITH updated AS (
          UPDATE users SET ${updates.join(', ')} WHERE id = $${i}
-         RETURNING id, username, password_hash, avatar_url, is_guest, created_at
+         RETURNING id, username, avatar_url, is_guest, created_at
        )
        SELECT
-         updated.id, updated.username, updated.password_hash, updated.avatar_url,
+         updated.id, updated.username, updated.avatar_url,
          updated.is_guest, updated.created_at,
          s.total_games, s.wins, s.best_score, s.total_score, s.total_moves
        FROM updated
@@ -127,14 +139,14 @@ export const db = {
     id: string,
     username: string,
     passwordHash: string,
-  ): Promise<UserRow | null> {
-    const { rows } = await pool.query<UserRow>(
+  ): Promise<UserProfileRow | null> {
+    const { rows } = await pool.query<UserProfileRow>(
       `WITH updated AS (
          UPDATE users SET username = $1, password_hash = $2, is_guest = FALSE WHERE id = $3
-         RETURNING id, username, password_hash, avatar_url, is_guest, created_at
+         RETURNING id, username, avatar_url, is_guest, created_at
        )
        SELECT
-         updated.id, updated.username, updated.password_hash, updated.avatar_url,
+         updated.id, updated.username, updated.avatar_url,
          updated.is_guest, updated.created_at,
          s.total_games, s.wins, s.best_score, s.total_score, s.total_moves
        FROM updated
@@ -205,6 +217,27 @@ export const db = {
       score: r.score,
       achievedAt: r.achieved_at.toISOString(),
     }));
+  },
+
+  async recordLoginSuccess(id: string): Promise<void> {
+    await pool.query(
+      `UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = $1`,
+      [id],
+    );
+  },
+
+  async recordLoginFailure(username: string): Promise<void> {
+    await pool.query(
+      `UPDATE users
+       SET
+         failed_login_attempts = failed_login_attempts + 1,
+         locked_until = CASE
+           WHEN failed_login_attempts + 1 >= 5 THEN NOW() + INTERVAL '15 minutes'
+           ELSE locked_until
+         END
+       WHERE username = $1`,
+      [username],
+    );
   },
 
   async getUserRank(userId: string): Promise<{ rank: number; surrounding: LeaderboardRow[] } | null> {

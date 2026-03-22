@@ -15,14 +15,44 @@ beforeEach(() => {
   db.upsertStats.mockResolvedValue(undefined);
 });
 
+// Helper: obtain a valid game session token from POST /stats/game-start
+const getGameToken = async (): Promise<string> => {
+  const res = await request(app)
+    .post('/api/v1/stats/game-start')
+    .set('Authorization', `Bearer ${validToken()}`);
+  expect(res.status).toBe(200);
+  return res.body.gameToken as string;
+};
+
+// ─── POST /stats/game-start ───────────────────────────────────────────────────
+
+describe('POST /stats/game-start', () => {
+  it('returns a signed game session token for authenticated users', async () => {
+    const res = await request(app)
+      .post('/api/v1/stats/game-start')
+      .set('Authorization', `Bearer ${validToken()}`);
+
+    expect(res.status).toBe(200);
+    expect(typeof res.body.gameToken).toBe('string');
+    expect(res.body.gameToken.length).toBeGreaterThan(0);
+  });
+
+  it('returns 401 when unauthenticated', async () => {
+    const res = await request(app).post('/api/v1/stats/game-start');
+    expect(res.status).toBe(401);
+  });
+});
+
 // ─── POST /stats/game-end ─────────────────────────────────────────────────────
 
 describe('POST /stats/game-end', () => {
   it('records a win and returns ok', async () => {
+    const gameToken = await getGameToken();
+
     const res = await request(app)
       .post('/api/v1/stats/game-end')
       .set('Authorization', `Bearer ${validToken()}`)
-      .send({ won: true, score: 4096, moves: 120 });
+      .send({ won: true, score: 4096, moves: 120, gameToken });
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
@@ -34,10 +64,12 @@ describe('POST /stats/game-end', () => {
   });
 
   it('records a loss and returns ok', async () => {
+    const gameToken = await getGameToken();
+
     const res = await request(app)
       .post('/api/v1/stats/game-end')
       .set('Authorization', `Bearer ${validToken()}`)
-      .send({ won: false, score: 512, moves: 55 });
+      .send({ won: false, score: 512, moves: 55, gameToken });
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
@@ -49,44 +81,84 @@ describe('POST /stats/game-end', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
+    const gameToken = await getGameToken();
+
     const res = await request(app)
       .post('/api/v1/stats/game-end')
-      .send({ won: true, score: 1000, moves: 80 });
+      .send({ won: true, score: 1000, moves: 80, gameToken });
 
     expect(res.status).toBe(401);
     expect(db.upsertStats).not.toHaveBeenCalled();
   });
 
   it('returns 422 for invalid body — missing won field', async () => {
+    const gameToken = await getGameToken();
+
     const res = await request(app)
       .post('/api/v1/stats/game-end')
       .set('Authorization', `Bearer ${validToken()}`)
-      .send({ score: 1000, moves: 80 });
+      .send({ score: 1000, moves: 80, gameToken });
 
     expect(res.status).toBe(422);
     expect(db.upsertStats).not.toHaveBeenCalled();
   });
 
   it('returns 422 for negative score', async () => {
+    const gameToken = await getGameToken();
+
     const res = await request(app)
       .post('/api/v1/stats/game-end')
       .set('Authorization', `Bearer ${validToken()}`)
-      .send({ won: false, score: -1, moves: 10 });
+      .send({ won: false, score: -1, moves: 10, gameToken });
 
     expect(res.status).toBe(422);
   });
 
-  it('does not allow score tampering — score comes from authenticated game session only', async () => {
-    // Score is never self-reported by an unsigned payload; the JWT must be valid.
-    // This test verifies the score is passed through from the request body unmodified
-    // (in production the WebSocket server would call this endpoint, not the client).
+  it('returns 422 when gameToken is missing', async () => {
     const res = await request(app)
       .post('/api/v1/stats/game-end')
       .set('Authorization', `Bearer ${validToken()}`)
-      .send({ won: true, score: 99999, moves: 200 });
+      .send({ won: true, score: 4096, moves: 120 });
+
+    expect(res.status).toBe(422);
+    expect(db.upsertStats).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 for an invalid game session token', async () => {
+    const res = await request(app)
+      .post('/api/v1/stats/game-end')
+      .set('Authorization', `Bearer ${validToken()}`)
+      .send({ won: true, score: 4096, moves: 120, gameToken: 'not-a-valid-token' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('INVALID_GAME_TOKEN');
+    expect(db.upsertStats).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 when game token belongs to a different user', async () => {
+    const { signGameToken } = jest.requireActual<typeof import('../src/jwt')>('../src/jwt');
+    const otherUserToken = signGameToken('different-user-id');
+
+    const res = await request(app)
+      .post('/api/v1/stats/game-end')
+      .set('Authorization', `Bearer ${validToken()}`)
+      .send({ won: true, score: 4096, moves: 120, gameToken: otherUserToken });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('GAME_TOKEN_MISMATCH');
+    expect(db.upsertStats).not.toHaveBeenCalled();
+  });
+
+  it('requires a valid game session token to record stats (prevents unbound score submission)', async () => {
+    // In test mode, timing checks are skipped; the token signature and user binding are enforced.
+    const gameToken = await getGameToken();
+
+    const res = await request(app)
+      .post('/api/v1/stats/game-end')
+      .set('Authorization', `Bearer ${validToken()}`)
+      .send({ won: true, score: 99999, moves: 200, gameToken });
 
     expect(res.status).toBe(200);
-    // Score is recorded as-is; in production the WS server validates game state
     expect(db.upsertStats).toHaveBeenCalledWith(mockFullUser.id, {
       won: true,
       score: 99999,

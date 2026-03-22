@@ -11,6 +11,8 @@ const app = createApp();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  db.recordLoginSuccess.mockResolvedValue(undefined);
+  db.recordLoginFailure.mockResolvedValue(undefined);
 });
 
 // ─── POST /auth/register ──────────────────────────────────────────────────────
@@ -122,6 +124,44 @@ describe('POST /auth/login', () => {
       .send({ username: 'Guest-1234', password: 'Password123' });
 
     expect(res.status).toBe(401);
+  });
+
+  it('returns 401 with ACCOUNT_LOCKED when account lockout is active', async () => {
+    db.findByUsername.mockResolvedValue({
+      ...mockFullUser,
+      locked_until: new Date(Date.now() + 10 * 60 * 1000), // locked for 10 more minutes
+    });
+
+    const res = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ username: 'testuser', password: 'Password123' });
+
+    expect(res.status).toBe(401);
+    expect(res.body.code).toBe('ACCOUNT_LOCKED');
+    expect(db.recordLoginFailure).not.toHaveBeenCalled();
+  });
+
+  it('records a failed login attempt when password is wrong', async () => {
+    const hash = await bcrypt.hash('correctpassword', 12);
+    db.findByUsername.mockResolvedValue({ ...mockFullUser, password_hash: hash });
+
+    await request(app)
+      .post('/api/v1/auth/login')
+      .send({ username: 'testuser', password: 'wrongpassword' });
+
+    expect(db.recordLoginFailure).toHaveBeenCalledWith('testuser');
+  });
+
+  it('resets failed login counter on successful login', async () => {
+    const hash = await bcrypt.hash('Password123', 12);
+    db.findByUsername.mockResolvedValue({ ...mockFullUser, password_hash: hash });
+
+    await request(app)
+      .post('/api/v1/auth/login')
+      .send({ username: 'testuser', password: 'Password123' });
+
+    expect(db.recordLoginSuccess).toHaveBeenCalledWith(mockFullUser.id);
+    expect(db.recordLoginFailure).not.toHaveBeenCalled();
   });
 });
 

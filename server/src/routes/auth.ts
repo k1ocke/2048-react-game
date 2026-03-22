@@ -60,6 +60,7 @@ router.post('/register', async (req, res) => {
     }
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const user = await db.createUser(username, passwordHash, false);
+    logger.info({ event: 'register', userId: user.id, username });
     const profile = toUserProfile(user);
     const token = signToken({ sub: user.id, username: user.username });
     res.cookie('token', token, tokenCookieOptions(2 * 60 * 60));
@@ -82,14 +83,33 @@ router.post('/login', async (req, res) => {
 
   try {
     const user = await db.findByUsername(username);
+
+    // Check account lockout before bcrypt to avoid wasting CPU on locked accounts
+    if (user?.locked_until && user.locked_until > new Date()) {
+      logger.warn({ event: 'login_locked', username, ip: req.ip });
+      res.status(401).json({ code: 'ACCOUNT_LOCKED', message: 'Account is temporarily locked. Please try again later.' });
+      return;
+    }
+
     // Run bcrypt even on not-found to prevent timing attacks
     const hash = user?.password_hash ?? DUMMY_HASH;
     const match = await bcrypt.compare(password, hash);
 
     if (!user || !match || user.is_guest) {
+      logger.warn({ event: 'login_failed', username, ip: req.ip });
+      if (user) {
+        db.recordLoginFailure(username).catch((err: unknown) =>
+          logger.error({ err }, 'Failed to record login failure'),
+        );
+      }
       res.status(401).json({ code: 'INVALID_CREDENTIALS', message: 'Invalid username or password' });
       return;
     }
+
+    logger.info({ event: 'login_success', userId: user.id, username });
+    db.recordLoginSuccess(user.id).catch((err: unknown) =>
+      logger.error({ err }, 'Failed to record login success'),
+    );
     const profile = toUserProfile(user);
     const token = signToken({ sub: user.id, username: user.username });
     res.cookie('token', token, tokenCookieOptions(2 * 60 * 60));
@@ -116,6 +136,7 @@ router.post('/guest', guestLimiter, async (_req, res) => {
       res.status(500).json({ code: 'INTERNAL_ERROR', message: 'Could not generate unique guest username' });
       return;
     }
+    logger.info({ event: 'guest_created', userId: user.id });
     const profile = toGuestProfile(user);
     const guestExpirySeconds = 24 * 60 * 60;
     const token = signToken({ sub: user.id, username: user.username, isGuest: true }, '24h');
@@ -153,6 +174,7 @@ router.post('/upgrade', requireAuth, requireGuest, async (req, res) => {
     if (oldJti && req.user!.exp) {
       addToBlocklist(oldJti, req.user!.exp);
     }
+    logger.info({ event: 'upgrade', userId, username });
     const profile = toUserProfile(user);
     const token = signToken({ sub: user.id, username: user.username });
     res.cookie('token', token, tokenCookieOptions(2 * 60 * 60));
@@ -165,10 +187,11 @@ router.post('/upgrade', requireAuth, requireGuest, async (req, res) => {
 
 // POST /auth/logout
 router.post('/logout', requireAuth, (req, res) => {
-  const { jti, exp } = req.user!;
+  const { jti, exp, sub } = req.user!;
   if (jti && exp) {
     addToBlocklist(jti, exp);
   }
+  logger.info({ event: 'logout', userId: sub });
   res.clearCookie('token', { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/' });
   res.status(204).send();
 });

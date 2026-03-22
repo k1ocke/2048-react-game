@@ -31,7 +31,7 @@ export interface AuthTokenPayload {
   exp: number;
 }
 
-// Shape of a row joined from users + user_stats
+// Full auth row — includes password_hash and lockout fields, used only by findByUsername (login).
 export interface UserRow {
   id: string;
   username: string;
@@ -39,6 +39,8 @@ export interface UserRow {
   avatar_url: string | null;
   is_guest: boolean;
   created_at: Date;
+  failed_login_attempts: number;
+  locked_until: Date | null;
   total_games: number | null;
   wins: number | null;
   best_score: number | null;
@@ -46,7 +48,10 @@ export interface UserRow {
   total_moves: string | null;
 }
 
-export const toUserProfile = (row: UserRow): UserProfile => ({
+// Profile row — auth-only fields excluded; used by all non-login queries.
+export type UserProfileRow = Omit<UserRow, 'password_hash' | 'failed_login_attempts' | 'locked_until'>;
+
+export const toUserProfile = (row: UserRow | UserProfileRow): UserProfile => ({
   id: row.id,
   username: row.username,
   avatarUrl: row.avatar_url ?? undefined,
@@ -60,7 +65,7 @@ export const toUserProfile = (row: UserRow): UserProfile => ({
   },
 });
 
-export const toGuestProfile = (row: UserRow): GuestProfile => ({
+export const toGuestProfile = (row: UserRow | UserProfileRow): GuestProfile => ({
   id: row.id,
   username: row.username,
   isGuest: true,

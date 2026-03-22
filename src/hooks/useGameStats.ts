@@ -30,6 +30,8 @@ export const useGameStats = (
   // Always holds the latest state so effects can read it without stale closures
   const stateRef = useRef(state);
   stateRef.current = state;
+  // Game session token issued by POST /stats/game-start; required for score submission
+  const gameTokenRef = useRef<string | null>(null);
 
   // Reset the baseline best score whenever a new game starts at 0
   useEffect(() => {
@@ -37,6 +39,23 @@ export const useGameStats = (
       sessionStartBest.current = state.bestScore;
     }
   }, [state.status, state.score, state.bestScore]);
+
+  // Request a game session token when a new game starts (MED-4: bind score to authenticated session)
+  useEffect(() => {
+    if (state.status === 'playing' && state.score === 0 && isAuthenticated) {
+      gameTokenRef.current = null;
+      fetch(`${API_BASE}/api/v1/stats/game-start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' },
+        credentials: 'include',
+      })
+        .then((r) => (r.ok ? (r.json() as Promise<{ gameToken: string }>) : null))
+        .then((data) => {
+          if (data) gameTokenRef.current = data.gameToken;
+        })
+        .catch(() => { /* silent — stats won't be submitted if token fetch fails */ });
+    }
+  }, [state.status, state.score, isAuthenticated]);
 
   useEffect(() => {
     const { status, score, tiles, moves, startTime } = stateRef.current;
@@ -48,12 +67,14 @@ export const useGameStats = (
       const duration = Math.round((Date.now() - startTime) / 1000);
       addHistoryEntry(score, status as 'won' | 'lost', { moves, bestTile, duration });
 
-      if (isAuthenticated && score > 0) {
+      if (isAuthenticated && score > 0 && gameTokenRef.current) {
+        const token = gameTokenRef.current;
+        gameTokenRef.current = null; // prevent reuse
         fetch(`${API_BASE}/api/v1/stats/game-end`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'fetch' },
           credentials: 'include',
-          body: JSON.stringify({ won: status === 'won', score, moves }),
+          body: JSON.stringify({ won: status === 'won', score, moves, gameToken: token }),
         })
           .then((res) => {
             if (!res.ok) {

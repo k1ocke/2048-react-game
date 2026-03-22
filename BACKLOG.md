@@ -30,26 +30,26 @@ check exists on `POST /logout`, `POST /stats/game-end`, `PATCH /me`, `POST /upgr
 
 ## MEDIUM
 
-### MED-1 — JWT_SECRET Minimum Entropy Not Enforced
+### MED-1 — JWT_SECRET Minimum Entropy Not Enforced ✅ FIXED
 **OWASP**: A02 Cryptographic Failures | **File**: `server/src/index.ts:11-13`
 Startup rejects missing secret and warns on the known default, but accepts secrets shorter than
 32 characters. An operator could deploy with `JWT_SECRET=abc`.
 **Fix**: `process.exit(1)` if `JWT_SECRET.length < 32`.
 
-### MED-2 — `password_hash` Selected in Every User Query
+### MED-2 — `password_hash` Selected in Every User Query ✅ FIXED
 **OWASP**: A04 Insecure Design | **File**: `server/src/db.ts:20-26`
 `USER_SELECT` includes `u.password_hash` in all queries, including `GET /me` and leaderboard
 lookups. A future serialisation bug or accidental logging could expose bcrypt hashes.
 **Fix**: Split into `USER_SELECT_AUTH` (includes hash, for login only) and `USER_SELECT_PROFILE`
 (excludes hash, for all other queries).
 
-### MED-3 — No Per-Account Login Lockout
+### MED-3 — No Per-Account Login Lockout ✅ FIXED
 **OWASP**: A07 Identification and Authentication Failures | **File**: `server/src/routes/auth.ts:72-98`
 The IP-based rate limiter (10 attempts/15 min/IP) is trivially bypassed by rotating IPs.
 A botnet can make unlimited guesses against a specific account.
 **Fix**: Track failed attempts per username in the database; lock account after N failures.
 
-### MED-4 — Single-Player Scores Are Client-Reported and Unverified
+### MED-4 — Single-Player Scores Are Client-Reported and Unverified ✅ FIXED
 **OWASP**: A04 Insecure Design | **File**: `server/src/routes/stats.ts`
 `POST /api/v1/stats/game-end` accepts `{won, score, moves}` directly from the client, validated
 only up to a maximum of 500,000. Any authenticated user can claim a perfect game.
@@ -57,20 +57,20 @@ Note: Multiplayer final rankings already use server-authoritative scores.
 **Fix**: Server-side move replay using a signed game-session token, or a signed proof-of-play
 token issued at game start and redeemed on completion.
 
-### MED-5 — No Rate Limiting on WebSocket Connection Establishment
+### MED-5 — No Rate Limiting on WebSocket Connection Establishment ✅ FIXED
 **OWASP**: A05 Security Misconfiguration | **File**: `server/src/ws/server.ts:39-58`
 No limit on simultaneous WebSocket connections per IP. An attacker can exhaust file descriptors
 and server memory by opening thousands of connections.
 **Fix**: Track active connections per IP in `verifyClient`; reject new connections above a
 threshold (e.g. 20 concurrent per IP).
 
-### MED-6 — Database SSL Not Enforced in Production
+### MED-6 — Database SSL Not Enforced in Production ✅ FIXED
 **OWASP**: A02 Cryptographic Failures | **File**: `server/src/db.ts:5-10`
 `Pool` is created from `DATABASE_URL` with no `ssl` option. In a cloud deployment with DB on a
 separate host, all query data (including password hashes) transits the network in plaintext.
 **Fix**: `ssl: { rejectUnauthorized: true }` when `NODE_ENV === 'production'`.
 
-### MED-7 — No Security Event Logging
+### MED-7 — No Security Event Logging ✅ FIXED
 **OWASP**: A09 Security Logging and Monitoring Failures | **File**: `server/src/routes/auth.ts`
 Failed logins, successful logins, logouts, registrations, and upgrades are not logged. Only
 unexpected 500 errors reach the logger, making brute-force detection impossible.

@@ -40,4 +40,5 @@ export const gameEndSchema = z.object({
   won: z.boolean(),
   score: z.number().int().min(0).max(500000),
   moves: z.number().int().min(0).max(100000),
+  gameToken: z.string().min(1),
 });
